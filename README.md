@@ -2,13 +2,8 @@
 
 Tour de France Fantasy League
 
-## How to run on your server
 
-```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+## summary
 
 
 ✅ Project Summary for Transition
@@ -92,4 +87,16 @@ Nice-to-Haves
 Would you like me to generate the next specific file(s) before you hand this off? (e.g. complete login + protected “My Team” stub)
 Just let the next chatbot know they can continue from here — the foundation is solid and follows your original PRD closely.
 Let me know if you want any adjustments to this summary! 🚴‍♂️
+
+## How to run on your server
+
+```bash
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+
+
+
 
