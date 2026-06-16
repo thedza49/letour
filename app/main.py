@@ -77,3 +77,45 @@ async def draft_rider(rider_id: int, request: Request):
 @app.get("/my-team", response_class=HTMLResponse)
 async def my_team(request: Request):
     return "<body class='bg-gray-900 text-white p-10'><h1>Your Team</h1><a href='/'>Back</a></body>"
+
+@app.post("/draft/{rider_id}")
+async def draft_rider(rider_id: int, request: Request):
+    coach = get_current_coach(request)
+    if not coach: return RedirectResponse("/", status_code=303)
+    
+    db = SessionLocal()
+    # Find or create the user (coach) in the database
+    user = db.query(User).filter(User.team_name == coach).first()
+    if not user:
+        user = User(team_name=coach)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    
+    rider = db.query(Rider).filter(Rider.id == rider_id).first()
+    if rider and rider not in user.roster:
+        user.roster.append(rider)
+        db.commit()
+    
+    db.close()
+    return RedirectResponse("/my-team", status_code=303)
+
+@app.get("/my-team", response_class=HTMLResponse)
+async def my_team(request: Request):
+    coach = get_current_coach(request)
+    if not coach: return RedirectResponse("/", status_code=303)
+    
+    db = SessionLocal()
+    user = db.query(User).filter(User.team_name == coach).first()
+    roster = user.roster if user else []
+    db.close()
+    
+    # Generate the table of drafted riders
+    rows = "".join(f"<li class='p-2 border-b border-gray-700'>{r.name} - {r.team}</li>" for r in roster)
+    
+    return f"""<script src="https://cdn.tailwindcss.com"></script>
+    <body class="bg-gray-900 text-white p-10">
+        <h1 class='text-3xl font-bold mb-5'>{coach}'s Roster</h1>
+        <ul class='bg-gray-800 rounded p-4'>{rows or '<li>No riders drafted yet.</li>'}</ul>
+        <a href='/riders' class='block mt-5 text-yellow-400'>← Back to Draft</a>
+    </body>"""
