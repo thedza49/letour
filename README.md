@@ -1,9 +1,3 @@
-I understand. We need to pause the code troubleshooting, step back, and map out the project properly. This will help us identify exactly where the "registration" issue is getting blocked and clarify our path forward.
-
-Here is a proposed `README.md` that serves as both documentation and a project management tool.
-
----
-
 ### README.md
 
 # LeTour Fantasy 2026
