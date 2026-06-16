@@ -6,30 +6,36 @@ from app.models import Rider, User, SessionLocal
 app = FastAPI(title="LeTour Fantasy")
 app.add_middleware(SessionMiddleware, secret_key="super-secret-key")
 
+# Helper to get the logged-in coach
+def get_current_coach(request: Request):
+    return request.session.get("coach")
+
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    coach = request.session.get("coach")
+    coach = get_current_coach(request)
     if coach:
         return f"""
-        <body class="bg-gray-900 text-white p-10 text-center">
-            <h1 class="text-4xl">Logged in as: <span class="text-yellow-400">{coach}</span></h1>
-            <div class="mt-10 space-x-4">
-                <a href="/riders" class="bg-blue-600 p-4 rounded">Draft Riders</a>
-                <a href="/my-team" class="bg-green-600 p-4 rounded">View My Team</a>
-                <a href="/logout" class="bg-red-600 p-4 rounded">Logout</a>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <body class="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center">
+            <h1 class="text-6xl font-bold text-yellow-400 mb-6">Welcome, {coach}</h1>
+            <div class="space-x-4">
+                <a href="/riders" class="bg-blue-600 px-8 py-4 rounded-xl font-bold hover:bg-blue-500">Browse & Draft Riders</a>
+                <a href="/my-team" class="bg-green-600 px-8 py-4 rounded-xl font-bold hover:bg-green-500">View My Team</a>
+                <a href="/logout" class="bg-red-600 px-8 py-4 rounded-xl font-bold hover:bg-red-500">Logout</a>
             </div>
         </body>
         """
     return """
-    <body class="bg-gray-900 text-white p-10 text-center">
-        <h1 class="text-4xl mb-10">Select Your Coach</h1>
-        <form action="/login" method="post" class="space-x-4">
-            <select name="coach" class="text-black p-2">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <body class="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center">
+        <h1 class="text-5xl font-bold mb-10">Select Your Coach</h1>
+        <form action="/login" method="post" class="bg-gray-800 p-10 rounded-2xl">
+            <select name="coach" class="text-black p-3 rounded mb-4 w-full">
                 <option value="Team Dza">Team Dza</option>
                 <option value="Team Blaster">Team Blaster</option>
                 <option value="Team MP">Team MP</option>
             </select>
-            <button type="submit" class="bg-yellow-400 text-black px-4 py-2 font-bold">Login</button>
+            <button type="submit" class="w-full bg-yellow-400 text-black p-3 rounded font-bold">Login</button>
         </form>
     </body>
     """
@@ -44,4 +50,30 @@ async def logout(request: Request):
     request.session.clear()
     return RedirectResponse("/", status_code=303)
 
-# ... (Keep your existing /riders, /draft, /drop, and /my-team functions here)
+@app.get("/riders", response_class=HTMLResponse)
+async def riders_page(request: Request):
+    coach = get_current_coach(request)
+    if not coach: return RedirectResponse("/", status_code=303)
+    db = SessionLocal()
+    riders = db.query(Rider).all()
+    db.close()
+    
+    rows = "".join(f"""
+        <tr class="border-b border-gray-700">
+            <td class="p-4">{r.name}</td>
+            <td class="p-4">{r.price}</td>
+            <td class="p-4"><form action="/draft/{r.id}" method="post"><button class="text-yellow-400">Draft</button></form></td>
+        </tr>
+    """ for r in riders)
+    
+    return f"""<script src="https://cdn.tailwindcss.com"></script>
+    <body class="bg-gray-900 text-white p-10"><table class="w-full text-left">{rows}</table><a href="/" class="text-gray-400">Back</a></body>"""
+
+@app.post("/draft/{rider_id}")
+async def draft_rider(rider_id: int, request: Request):
+    # Add your draft logic here
+    return RedirectResponse("/my-team", status_code=303)
+
+@app.get("/my-team", response_class=HTMLResponse)
+async def my_team(request: Request):
+    return "<body class='bg-gray-900 text-white p-10'><h1>Your Team</h1><a href='/'>Back</a></body>"
