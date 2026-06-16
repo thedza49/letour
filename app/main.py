@@ -116,3 +116,18 @@ async def my_team(request: Request):
         <ul class='bg-gray-800 rounded p-4'>{rows or '<li>No riders drafted yet.</li>'}</ul>
         <a href='/riders' class='block mt-5 text-blue-400'>← Back to Draft</a>
     </body>"""
+
+@app.post("/clear-team")
+async def clear_team(request: Request):
+    coach = get_current_coach(request)
+    if not coach: return RedirectResponse("/", status_code=303)
+    
+    db = SessionLocal()
+    user = db.query(User).filter(User.team_name == coach).first()
+    if user:
+        user.roster = [] # Clears the relationship
+        db.commit()
+    db.close()
+    return RedirectResponse("/my-team", status_code=303)
+
+
