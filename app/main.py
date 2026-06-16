@@ -1,4 +1,3 @@
-cat << 'EOF' > app/main.py
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
@@ -123,4 +122,3 @@ async def my_team(request: Request):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-EOF
