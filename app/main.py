@@ -100,18 +100,19 @@ async def draft_rider(rider_id: int, request: Request):
 async def my_team(request: Request):
     coach = get_current_coach(request)
     if not coach: return RedirectResponse("/", status_code=303)
-    
+
     db = SessionLocal()
     user = db.query(User).filter(User.team_name == coach).first()
     roster = user.roster if user else []
+    total_cost = sum(r.price for r in roster)
     db.close()
-    
-    # Generate the table of drafted riders
-    rows = "".join(f"<li class='p-2 border-b border-gray-700'>{r.name} - {r.team}</li>" for r in roster)
+
+    rows = "".join(f"<li class='p-2 border-b border-gray-700'>{r.name} - {r.price}</li>" for r in roster)
     
     return f"""<script src="https://cdn.tailwindcss.com"></script>
     <body class="bg-gray-900 text-white p-10">
-        <h1 class='text-3xl font-bold mb-5'>{coach}'s Roster</h1>
+        <h1 class='text-3xl font-bold mb-2'>{coach}'s Roster</h1>
+        <div class='text-xl mb-5 text-yellow-400'>Budget Used: {total_cost}/150.0</div>
         <ul class='bg-gray-800 rounded p-4'>{rows or '<li>No riders drafted yet.</li>'}</ul>
-        <a href='/riders' class='block mt-5 text-yellow-400'>← Back to Draft</a>
+        <a href='/riders' class='block mt-5 text-blue-400'>← Back to Draft</a>
     </body>"""
