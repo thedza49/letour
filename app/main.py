@@ -75,7 +75,6 @@ async def draft_rider(rider_id: int, request: Request):
     if not coach: return RedirectResponse("/", status_code=303)
     
     db = SessionLocal()
-    # Find or create the user (coach) in the database
     user = db.query(User).filter(User.team_name == coach).first()
     if not user:
         user = User(team_name=coach)
@@ -84,12 +83,18 @@ async def draft_rider(rider_id: int, request: Request):
         db.refresh(user)
     
     rider = db.query(Rider).filter(Rider.id == rider_id).first()
-    if rider and rider not in user.roster:
+    
+    # Calculate current roster total
+    current_total = sum(r.price for r in user.roster)
+    
+    # Budget Logic: 150 cap
+    if rider and rider not in user.roster and (current_total + rider.price <= 150.0):
         user.roster.append(rider)
         db.commit()
     
     db.close()
     return RedirectResponse("/my-team", status_code=303)
+
 
 @app.get("/my-team", response_class=HTMLResponse)
 async def my_team(request: Request):
