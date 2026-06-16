@@ -1,33 +1,40 @@
+import cloudscraper
 from procyclingstats import RaceStartlist
 from app.models import SessionLocal, Rider
 
 def sync_riders():
-    # 1. Choose the race (e.g., Tour de France 2025)
-    # You can get this URL from ProCyclingStats
-    url = "race/tour-de-france/2025/startlist" 
+    # The URL for the 2026 Tour de France
+    url = "race/tour-de-france/2026/startlist" 
     
-    print(f"Fetching data from {url}...")
-    startlist = RaceStartlist(url)
-    data = startlist.startlist() # This is the list of riders
+    # Initialize the "Cloak" (Cloudscraper)
+    scraper = cloudscraper.create_scraper()
+    
+    # Get the HTML page as if we were a normal browser
+    print(f"Fetching data for 2026 from {url}...")
+    html_content = scraper.get(f"https://www.procyclingstats.com/{url}").text
+    
+    # Feed that HTML into the RaceStartlist tool
+    startlist = RaceStartlist(url, html=html_content)
+    data = startlist.startlist() 
     
     db = SessionLocal()
     
-    # Optional: Clear old riders first
+    # Clear old riders
     db.query(Rider).delete()
     
-    # 2. Add them to your database
+    # Add new riders
     for entry in data:
         new_rider = Rider(
             name=entry['rider_name'],
-            team=entry['team_name'],
-            price=25.0, # Default price until we add logic to determine it
+            team=entry['team_name'] if 'team_name' in entry else "Unknown",
+            price=25.0, 
             rider_type="Unknown"
         )
         db.add(new_rider)
     
     db.commit()
     db.close()
-    print("Sync complete!")
+    print("Sync complete! 2026 riders loaded.")
 
 if __name__ == "__main__":
     sync_riders()
