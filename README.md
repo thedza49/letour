@@ -1,102 +1,47 @@
-# LeTour Fantasy
+I understand. We need to pause the code troubleshooting, step back, and map out the project properly. This will help us identify exactly where the "registration" issue is getting blocked and clarify our path forward.
 
-Tour de France Fantasy League
+Here is a proposed `README.md` that serves as both documentation and a project management tool.
 
+---
 
-## summary
+### README.md
 
+# LeTour Fantasy 2026
 
-✅ Project Summary for Transition
-Here’s a clear, complete overview of where we are with LeTour Fantasy — ready to hand off to another chatbot (or developer).
-Current Status (as of June 2026)
-What has been built and is working:
-	•	Project Structure: Clean FastAPI + SQLite setup on your Oracle Cloud Ubuntu server.
-	•	Homepage: Nice dark/TdF-themed responsive page with Tailwind CSS (mobile-friendly).
-	•	Riders Page (/riders): Displays all loaded riders in a table with name, team, price, and UCI rank.
-	•	Database: SQLAlchemy models for User, Rider, and TeamRider (following your PRD).
-	•	Rider Data: 11 sample top riders loaded into the database (with tier-based pricing). Easy to expand.
-	•	Basic Auth: Register page (/register) with email, team name, and password. Data is hashed and saved.
-	•	Deployment Ready: Running on port 8000 via uvicorn. Firewall rules set. GitHub repo synced: https://github.com/thedza49/letour
-Tech Stack (matches your PRD)
-	•	Backend: FastAPI (Python)
-	•	Database: SQLite (letour.db)
-	•	Frontend: Jinja-style HTML + Tailwind CSS (lightweight, no React yet)
-	•	Data: Manual + procyclingstats-ready
-	•	Hosting: Oracle Cloud Ubuntu VPS
+A custom-built Fantasy Cycling platform for the 2026 season. Built with FastAPI, SQLite, and Tailwind CSS.
 
-Updated `README.md` (Recommended Content)
-You can copy this into your repo:
-# LeTour Fantasy - Tour de France Fantasy League
+## Project Status
 
-Budget-based fantasy game (€100 for 9 riders, open ownership, daily captain 2x multiplier).
+We have established the core architecture, including secure user authentication and database modeling.
 
-## Current Features
-- Beautiful mobile-friendly homepage
-- Browse all riders with prices and rankings
-- User registration (email + team name + password)
-- SQLite database with proper models
-- Rider import system (expandable via CSV or procyclingstats)
+**Current Blocker:** The `bcrypt` password hashing library is experiencing environment conflicts during the registration process on the Oracle cloud server.
 
-## Setup on Server
+## Roadmap
 
-```bash
-cd ~/letour
-source venv/bin/activate
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-Access at: http://YOUR-IP:8000
-Project Structure
-letour/
-├── app/
-│   ├── main.py          # Routes + pages
-│   ├── models.py        # Database models
-│   └── auth.py          # Registration logic
-├── riders.csv
-├── letour.db
-├── requirements.txt
-└── import_riders.py
-Next Development Priorities
-Phase 1 - Core Game (High Priority)
-	1	Login functionality + session management (currently only register works)
-	2	My Team page:
-	◦	View current squad
-	◦	Add/remove riders with €100 budget validation
-	◦	9-rider limit enforcement
-	◦	Daily Captain selection
-	3	Team persistence using TeamRider join table
-Phase 2 - Scoring & Automation
-	4	Scoring Engine (mimic official Fantasy by Tissot)
-	◦	Stage results points
-	◦	Jersey bonuses
-	◦	Captain 2x multiplier
-	5	Daily data sync using procyclingstats + APScheduler (post-stage results)
-	6	Leaderboard page
-Phase 3 - Admin & Polish
-	7	Commissioner Admin Dashboard
-	◦	View all teams
-	◦	Manual score overrides
-	◦	Rider activation (DNF handling)
-	8	Transfer system (post-stage lock/unlock)
-	9	Better rider import for full 2026 startlist
-	10	Deployment improvements (systemd service, Nginx reverse proxy, domain + SSL)
-Nice-to-Haves
-	•	Password login + protected routes
-	•	Team editing with budget calculator
-	•	Mobile PWA feel
-	•	Docker support (optional)
+| Phase | Task | Status |
+| --- | --- | --- |
+| **1. Auth** | User Registration & Login | ⚠️ Blocked (Bcrypt Conflict) |
+| **2. Core** | Database Setup & Rider Seeding | ✅ Complete |
+| **3. Draft** | Logic: Budgeting & Roster Limits | ⏳ Pending |
+| **4. UI** | Responsive Dashboard & Drafting | ⏳ Pending |
+| **5. Scaling** | CSV Data Import for full Pelotón | 📅 Next |
 
-Would you like me to generate the next specific file(s) before you hand this off? (e.g. complete login + protected “My Team” stub)
-Just let the next chatbot know they can continue from here — the foundation is solid and follows your original PRD closely.
-Let me know if you want any adjustments to this summary! 🚴‍♂️
+## How to Deploy
 
-## How to run on your server
+1. **Pull Repo:** `git pull origin main`
+2. **Setup Env:** `source venv/bin/activate`
+3. **Dependencies:** `pip install -r requirements.txt`
+4. **Run Server:** `uvicorn app.main:app --reload`
 
-```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+---
 
+### Understanding the Architecture
 
+Before we fix the registration, it is helpful to visualize how these components interact.
 
+### The "Ghost" of the Registration Issue
 
+The `ValueError: password cannot be longer than 72 bytes` and the `AttributeError` for `bcrypt` are happening because your server’s Python environment is pulling in incompatible versions of security packages.
 
+**My proposal to fix this without further "ghost" errors:**
+Instead of relying on the system-wide `bcrypt` (which keeps breaking), we should force the environment to use a standalone wrapper.
