@@ -1,41 +1,61 @@
-### README.md
+### LeTour Fantasy 2026
 
-# LeTour Fantasy 2026
+A custom web application for managing fantasy cycling teams for the 2026 Tour de France.
 
-A custom-built Fantasy Cycling platform for the 2026 season. Built with FastAPI, SQLite, and Tailwind CSS.
+## Overview
 
-## Project Status
+LeTour Fantasy allows users to draft cyclists, manage a team roster, and stay within a defined salary cap. The application features a budget-based drafting system and an automated synchronization engine to pull real-time startlist data directly from ProCyclingStats.
 
-We have established the core architecture, including secure user authentication and database modeling.
+## Key Features
 
-**Current Blocker:** The `bcrypt` password hashing library is experiencing environment conflicts during the registration process on the Oracle cloud server.
+* **Coach Authentication:** Selectable team profiles for a personalized experience.
+* **Smart Drafting:** Real-time budget tracking with a 150.0 salary cap.
+* **Automated Data Sync:** Integrated scraping engine to import the latest 2026 Tour de France startlist.
+* **Responsive UI:** Built with Tailwind CSS for a clean, mobile-friendly interface.
 
-## Roadmap
+## Tech Stack
 
-| Phase | Task | Status |
-| --- | --- | --- |
-| **1. Auth** | User Registration & Login | ⚠️ Blocked (Bcrypt Conflict) |
-| **2. Core** | Database Setup & Rider Seeding | ✅ Complete |
-| **3. Draft** | Logic: Budgeting & Roster Limits | ⏳ Pending |
-| **4. UI** | Responsive Dashboard & Drafting | ⏳ Pending |
-| **5. Scaling** | CSV Data Import for full Pelotón | 📅 Next |
+* **Framework:** FastAPI
+* **Database:** SQLite with SQLAlchemy ORM
+* **Data Integration:** `undetected-chromedriver` and `BeautifulSoup` for automated web scraping.
+* **Frontend:** HTML5 with Tailwind CSS (via CDN).
 
-## How to Deploy
+## Setup & Usage
 
-1. **Pull Repo:** `git pull origin main`
-2. **Setup Env:** `source venv/bin/activate`
-3. **Dependencies:** `pip install -r requirements.txt`
-4. **Run Server:** `uvicorn app.main:app --reload`
+### 1. Installation
+
+Ensure you are in the project root and your virtual environment is active:
+
+```bash
+source venv/bin/activate
+pip install -r requirements.txt
+
+```
+
+### 2. Running the Application
+
+Start the development server with:
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+```
+
+### 3. Synchronizing Data
+
+To update your local database with the latest 2026 rider information, run the synchronization script:
+
+```bash
+python3 sync_riders.py
+
+```
+
+## Project Roadmap
+
+* [x] **Phase 1:** Core Architecture (Auth, DB, Models)
+* [x] **Phase 2:** Drafting Logic & Salary Cap
+* [x] **Phase 3:** UI Navigation & Dashboard
+* [ ] **Phase 4:** Rider Metadata (Climber/Sprinter categorization)
+* [ ] **Phase 5:** Full Data Pipeline Integration
 
 ---
-
-### Understanding the Architecture
-
-Before we fix the registration, it is helpful to visualize how these components interact.
-
-### The "Ghost" of the Registration Issue
-
-The `ValueError: password cannot be longer than 72 bytes` and the `AttributeError` for `bcrypt` are happening because your server’s Python environment is pulling in incompatible versions of security packages.
-
-**My proposal to fix this without further "ghost" errors:**
-Instead of relying on the system-wide `bcrypt` (which keeps breaking), we should force the environment to use a standalone wrapper.
