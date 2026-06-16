@@ -12,15 +12,12 @@ team_roster = Table(
     Column('rider_id', Integer, ForeignKey('riders.id'))
 )
 
+# In app/models.py
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True)
-    team_name = Column(String, unique=True)
-    password_hash = Column(String)
-    
-    # This tells the database to pull all riders associated with this user
-    roster = relationship("Rider", secondary=team_roster, backref="teams")
+    team_name = Column(String, unique=True) # Used as the login ID
+    # No password_hash needed anymore!
 
 class Rider(Base):
     __tablename__ = "riders"
