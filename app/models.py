@@ -23,8 +23,20 @@ class Rider(Base):
     name = Column(String)
     team = Column(String)
     price = Column(Float)
-    rider_type = Column(String) # This holds the "Climber" or "Sprinter" info
+    rider_type = Column(String)
 
 engine = create_engine("sqlite:///./letour.db", connect_args={"check_same_thread": False})
 Base.metadata.create_all(bind=engine)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# AUTO-SEEDING LOGIC
+db = SessionLocal()
+if not db.query(Rider).first():
+    db.add_all([
+        Rider(name="Tadej Pogacar", team="UAE", price=55.0, rider_type="Climber"),
+        Rider(name="Jonas Vingegaard", team="Visma", price=52.0, rider_type="Climber"),
+        Rider(name="Remco Evenepoel", team="Soudal", price=48.0, rider_type="GC Contender"),
+        Rider(name="Jasper Philipsen", team="Alpecin", price=40.0, rider_type="Sprinter")
+    ])
+    db.commit()
+db.close()
