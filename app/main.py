@@ -71,15 +71,6 @@ async def riders_page(request: Request):
 
 @app.post("/draft/{rider_id}")
 async def draft_rider(rider_id: int, request: Request):
-    # Add your draft logic here
-    return RedirectResponse("/my-team", status_code=303)
-
-@app.get("/my-team", response_class=HTMLResponse)
-async def my_team(request: Request):
-    return "<body class='bg-gray-900 text-white p-10'><h1>Your Team</h1><a href='/'>Back</a></body>"
-
-@app.post("/draft/{rider_id}")
-async def draft_rider(rider_id: int, request: Request):
     coach = get_current_coach(request)
     if not coach: return RedirectResponse("/", status_code=303)
     
