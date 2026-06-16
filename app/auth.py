@@ -1,4 +1,3 @@
-cat << 'EOF' > app/auth.py
 from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
@@ -87,4 +86,3 @@ async def login(
 async def logout(request: Request):
     request.session.clear()
     return RedirectResponse("/", status_code=303)
-EOF
