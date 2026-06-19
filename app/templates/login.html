@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Login - LeTour Fantasy{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto mt-20 p-8 bg-gray-800 rounded-2xl">
+    <h1 class="text-3xl font-bold text-yellow-400 mb-2 text-center">🏆 LeTour Fantasy 2026</h1>
+    <p class="text-center text-gray-400 mb-6">Log in to manage your team</p>
+    <form method="post" action="/login">
+        <input type="email" name="email" placeholder="Email" class="w-full p-3 mb-4 bg-gray-700 rounded" required autofocus>
+        <input type="password" name="password" placeholder="Password" class="w-full p-3 mb-6 bg-gray-700 rounded" required>
+        <button type="submit" class="w-full bg-yellow-400 text-black py-3 rounded font-bold hover:bg-yellow-300">Login</button>
+    </form>
+</div>
+{% endblock %}

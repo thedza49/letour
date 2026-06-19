@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}LeTour Fantasy{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    {% if coach %}
+    <nav class="bg-gray-800 p-4 mb-6 flex items-center justify-between border-b border-gray-700">
+        <div class="flex space-x-6 text-yellow-400 font-bold">
+            <a href="/">Home</a>
+            <a href="/riders">Browse Riders</a>
+            <a href="/my-team">My Team</a>
+        </div>
+        <div class="flex items-center space-x-4 text-sm text-gray-300">
+            <span>{{ coach }}</span>
+            <a href="/logout" class="text-red-400 hover:text-red-300">Logout</a>
+        </div>
+    </nav>
+    {% endif %}
+
+    <div class="max-w-4xl mx-auto px-4">
+        {% if error %}
+        <div class="bg-red-900 border border-red-600 text-red-200 p-3 rounded mb-4">{{ error }}</div>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

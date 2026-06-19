@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}My Team - LeTour Fantasy{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-2">Your Roster - {{ coach }}</h1>
+<p class="mb-6 text-gray-300">Budget used: <span class="text-yellow-400">€{{ "%.1f"|format(total_cost) }} / €{{ "%.0f"|format(salary_cap) }}</span> &middot; Riders: <span class="text-yellow-400">{{ roster|length }} / {{ roster_size }}</span></p>
+
+{% if roster %}
+<ul class="divide-y divide-gray-800 mb-6">
+    {% for r in roster %}
+    <li class="p-3 flex justify-between items-center">
+        <span>{{ r.name }} <span class="text-gray-400 text-sm">({{ r.rider_type }}, {{ r.team }})</span></span>
+        <span class="text-yellow-400">€{{ "%.1f"|format(r.price) }}</span>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p class="text-gray-400 mb-6">You haven't drafted any riders yet. <a href="/riders" class="text-yellow-400">Browse riders →</a></p>
+{% endif %}
+
+<form action="/clear-team" method="post" onsubmit="return confirm('Clear your entire roster? This cannot be undone.');">
+    <button type="submit" class="text-red-400 hover:text-red-300 text-sm">Clear Team</button>
+</form>
+{% endblock %}
