@@ -1,88 +1,141 @@
-from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+import os
+from fastapi import FastAPI, Request, Depends
+from fastapi.responses import RedirectResponse
+from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
-from app.models import Rider, User, SessionLocal
+from sqlalchemy.orm import Session
+from dotenv import load_dotenv
+
+from app.models import Rider, User, SessionLocal, SALARY_CAP, ROSTER_SIZE
+from app.auth import router as auth_router, get_current_user
+
+load_dotenv()
 
 app = FastAPI()
-app.add_middleware(SessionMiddleware, secret_key="super-secret-key")
 
-def get_current_coach(request: Request):
-    return request.session.get("coach")
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "SECRET_KEY is not set. Add a SECRET_KEY value to app/.env before starting the app."
+    )
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 
-# This creates a shared navigation menu for all pages
-def nav_bar():
-    return """
-    <nav class="bg-gray-800 p-4 mb-6 flex space-x-6 text-yellow-400 font-bold border-b border-gray-700">
-        <a href="/">Home</a>
-        <a href="/my-team">My Team</a>
-        <a href="/riders">Browse Players</a>
-    </nav>
-    """
+app.include_router(auth_router)
 
-@app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    coach = get_current_coach(request)
-    if not coach:
-        return """<script src="https://cdn.tailwindcss.com"></script>
-        <body class="bg-gray-900 text-white p-10"><form action="/login" method="post">
-        <select name="coach" class="text-black"><option>Team Dza</option><option>Team Blaster</option><option>Team MP</option></select>
-        <button type="submit" class="bg-yellow-400 p-2 text-black">Login</button></form></body>"""
-    return f"""<script src="https://cdn.tailwindcss.com"></script><body class="bg-gray-900 text-white">
-    {nav_bar()}<h1 class="p-10 text-4xl">Welcome, {coach}</h1></body>"""
+templates = Jinja2Templates(directory="app/templates")
 
-@app.post("/login")
-async def login(request: Request, coach: str = Form(...)):
-    request.session["coach"] = coach
-    return RedirectResponse("/", status_code=303)
 
-@app.get("/riders", response_class=HTMLResponse)
-async def riders_page(request: Request):
+def get_db():
     db = SessionLocal()
-    riders = db.query(Rider).all()
-    coach = get_current_coach(request)
-    user = db.query(User).filter(User.team_name == coach).first()
-    total_spent = sum(r.price for r in (user.roster if user else []))
-    db.close()
-    rows = "".join(f"<tr><td class='p-2'>{r.name}</td><td class='p-2'>{r.rider_type}</td><td class='p-2'>{r.price}</td><td class='p-2'><form action='/draft/{r.id}' method='post'><button class='text-yellow-400'>Draft</button></form></td></tr>" for r in riders)
-    return f"""<script src="https://cdn.tailwindcss.com"></script><body class="bg-gray-900 text-white">
-    {nav_bar()}<div class='px-10'>Budget Used: {total_spent}/150</div>
-    <table class='w-full mt-4'>{rows}</table></body>"""
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def require_coach(request: Request, db: Session):
+    """Returns the logged-in User row, or None if not authenticated."""
+    team_name = get_current_user(request)
+    if not team_name:
+        return None
+    return db.query(User).filter(User.team_name == team_name).first()
+
+
+@app.get("/")
+async def home(request: Request, db: Session = Depends(get_db)):
+    user = require_coach(request, db)
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
+    total_spent = sum(r.price for r in user.roster)
+    return templates.TemplateResponse(
+        request,
+        "home.html",
+        {
+            "coach": user.team_name,
+            "total_spent": total_spent,
+            "salary_cap": SALARY_CAP,
+            "roster_count": len(user.roster),
+            "roster_size": ROSTER_SIZE,
+        },
+    )
+
+
+@app.get("/riders")
+async def riders_page(request: Request, db: Session = Depends(get_db)):
+    user = require_coach(request, db)
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
+    riders = db.query(Rider).order_by(Rider.price.desc()).all()
+    total_spent = sum(r.price for r in user.roster)
+    drafted_ids = {r.id for r in user.roster}
+
+    return templates.TemplateResponse(
+        request,
+        "riders.html",
+        {
+            "coach": user.team_name,
+            "riders": riders,
+            "drafted_ids": drafted_ids,
+            "total_spent": total_spent,
+            "salary_cap": SALARY_CAP,
+            "roster_count": len(user.roster),
+            "roster_size": ROSTER_SIZE,
+        },
+    )
+
 
 @app.post("/draft/{rider_id}")
-async def draft_rider(rider_id: int, request: Request):
-    coach = get_current_coach(request)
-    db = SessionLocal()
-    user = db.query(User).filter(User.team_name == coach).first() or User(team_name=coach)
+async def draft_rider(rider_id: int, request: Request, db: Session = Depends(get_db)):
+    user = require_coach(request, db)
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
     rider = db.query(Rider).filter(Rider.id == rider_id).first()
-    if sum(r.price for r in user.roster) + rider.price <= 150.0:
+    if not rider:
+        return RedirectResponse("/riders", status_code=303)
+
+    already_drafted = any(r.id == rider.id for r in user.roster)
+    over_budget = sum(r.price for r in user.roster) + rider.price > SALARY_CAP
+    roster_full = len(user.roster) >= ROSTER_SIZE
+
+    if not already_drafted and not over_budget and not roster_full:
         user.roster.append(rider)
         db.add(user)
         db.commit()
-    db.close()
-    return RedirectResponse("/my-team", status_code=303)
 
-@app.get("/my-team", response_class=HTMLResponse)
-async def my_team(request: Request):
-    coach = get_current_coach(request)
-    db = SessionLocal()
-    user = db.query(User).filter(User.team_name == coach).first()
-    roster = user.roster if user else []
+    return RedirectResponse("/riders", status_code=303)
+
+
+@app.get("/my-team")
+async def my_team(request: Request, db: Session = Depends(get_db)):
+    user = require_coach(request, db)
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
+    roster = user.roster
     total_cost = sum(r.price for r in roster)
-    db.close()
-    rows = "".join(f"<li class='p-2'>{r.name} ({r.rider_type}) - {r.price}</li>" for r in roster)
-    return f"""<script src="https://cdn.tailwindcss.com"></script><body class="bg-gray-900 text-white">
-    {nav_bar()}<div class='px-10'><h1 class='text-2xl'>Your Roster</h1>
-    <p>Total Team Cost: {total_cost}/150</p>
-    <ul>{rows}</ul>
-    <form action='/clear-team' method='post'><button class='text-red-500 mt-4'>Clear Team</button></form>
-    </div></body>"""
+
+    return templates.TemplateResponse(
+        request,
+        "my_team.html",
+        {
+            "coach": user.team_name,
+            "roster": roster,
+            "total_cost": total_cost,
+            "salary_cap": SALARY_CAP,
+            "roster_size": ROSTER_SIZE,
+        },
+    )
+
 
 @app.post("/clear-team")
-async def clear_team(request: Request):
-    coach = get_current_coach(request)
-    db = SessionLocal()
-    user = db.query(User).filter(User.team_name == coach).first()
-    if user: user.roster = []
+async def clear_team(request: Request, db: Session = Depends(get_db)):
+    user = require_coach(request, db)
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
+    user.roster = []
     db.commit()
-    db.close()
     return RedirectResponse("/my-team", status_code=303)
