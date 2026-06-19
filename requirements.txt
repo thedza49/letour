@@ -1,0 +1,16 @@
+# Core app
+fastapi
+uvicorn
+sqlalchemy
+python-multipart
+jinja2
+python-dotenv
+passlib[bcrypt]
+bcrypt<4.0
+
+# Needed later (Phase 2/3 - rider import automation, scoring scheduler)
+# alembic
+# python-jose[cryptography]
+# procyclingstats
+# apscheduler
+# pandas
