@@ -1,11 +1,14 @@
-from fastapi import APIRouter, Depends, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import RedirectResponse
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from app.models import User, SessionLocal
 
 router = APIRouter()
+templates = Jinja2Templates(directory="app/templates")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 
 def get_db():
     db = SessionLocal()
@@ -14,75 +17,40 @@ def get_db():
     finally:
         db.close()
 
-@router.get("/register", response_class=HTMLResponse)
-async def register_page():
-    html = """
-    <html><head><script src="https://cdn.tailwindcss.com"></script></head><body class="bg-gray-900 text-white">
-    <div class="max-w-md mx-auto mt-20 p-8 bg-gray-800 rounded-2xl">
-        <h2 class="text-3xl font-bold text-yellow-400 mb-6 text-center">Register</h2>
-        <form method="post" action="/register">
-            <input type="email" name="email" placeholder="Email" class="w-full p-3 mb-4 bg-gray-700 rounded" required><br>
-            <input type="text" name="team_name" placeholder="Team Name" class="w-full p-3 mb-4 bg-gray-700 rounded" required><br>
-            <input type="password" name="password" placeholder="Password" class="w-full p-3 mb-6 bg-gray-700 rounded" required><br>
-            <button type="submit" class="w-full bg-yellow-400 text-black py-3 rounded font-bold">Create Account</button>
-        </form>
-        <p class="text-center mt-4"><a href="/login" class="text-yellow-400">Already have an account? Login</a></p>
-        <p class="text-center mt-4"><a href="/" class="text-gray-400">← Home</a></p>
-    </div>
-    </body></html>
-    """
-    return HTMLResponse(content=html)
 
-@router.post("/register")
-async def register(
-    email: str = Form(...), 
-    team_name: str = Form(...), 
-    password: str = Form(...), 
-    db: Session = Depends(get_db)
-):
-    if db.query(User).filter(User.email == email).first():
-        return RedirectResponse("/register", status_code=303)
+def get_current_user(request: Request):
+    """Returns the logged-in coach's team_name, or None."""
+    return request.session.get("team_name")
 
-    hashed = pwd_context.hash(password)
-    user = User(email=email, team_name=team_name, password_hash=hashed)
-    db.add(user)
-    db.commit()
-    return RedirectResponse("/login", status_code=303)
 
-@router.get("/login", response_class=HTMLResponse)
-async def login_page():
-    html = """
-    <html><head><script src="https://cdn.tailwindcss.com"></script></head><body class="bg-gray-900 text-white">
-    <div class="max-w-md mx-auto mt-20 p-8 bg-gray-800 rounded-2xl">
-        <h2 class="text-3xl font-bold text-yellow-400 mb-6 text-center">Login</h2>
-        <form method="post" action="/login">
-            <input type="email" name="email" placeholder="Email" class="w-full p-3 mb-4 bg-gray-700 rounded" required><br>
-            <input type="password" name="password" placeholder="Password" class="w-full p-3 mb-6 bg-gray-700 rounded" required><br>
-            <button type="submit" class="w-full bg-yellow-400 text-black py-3 rounded font-bold">Login</button>
-        </form>
-        <p class="text-center mt-4"><a href="/register" class="text-yellow-400">Need an account? Register</a></p>
-        <p class="text-center mt-4"><a href="/" class="text-gray-400">← Home</a></p>
-    </div>
-    </body></html>
-    """
-    return HTMLResponse(content=html)
+@router.get("/login")
+async def login_page(request: Request):
+    if request.session.get("team_name"):
+        return RedirectResponse("/", status_code=303)
+    return templates.TemplateResponse(request, "login.html", {"coach": None})
+
 
 @router.post("/login")
-async def login(
-    request: Request,
-    email: str = Form(...),
-    password: str = Form(...),
-    db: Session = Depends(get_db)
-):
+async def login(request: Request, db: Session = Depends(get_db)):
+    form = await request.form()
+    email = (form.get("email") or "").strip().lower()
+    password = form.get("password") or ""
+
     user = db.query(User).filter(User.email == email).first()
     if not user or not pwd_context.verify(password, user.password_hash):
-        return RedirectResponse("/login", status_code=303)
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            {"coach": None, "error": "Incorrect email or password."},
+            status_code=401,
+        )
 
     request.session["user_id"] = user.id
     request.session["team_name"] = user.team_name
-    return RedirectResponse("/my-team", status_code=303)
+    return RedirectResponse("/", status_code=303)
+
 
 @router.get("/logout")
 async def logout(request: Request):
     request.session.clear()
-    return RedirectResponse("/", status_code=303)
+    return RedirectResponse("/login", status_code=303)
