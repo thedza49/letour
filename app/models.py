@@ -4,7 +4,10 @@ from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from sqlalchemy import create_engine
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load app/.env explicitly so this works regardless of which directory
+# this module is imported from (e.g. create_coaches.py at the project root).
+_ENV_PATH = os.path.join(os.path.dirname(__file__), ".env")
+load_dotenv(_ENV_PATH)
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./letour.db")
 
