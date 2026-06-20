@@ -2,14 +2,61 @@
 {% block title %}My Team - LeTour Fantasy{% endblock %}
 {% block content %}
 <h1 class="text-2xl font-bold mb-2">Your Roster - {{ coach }}</h1>
-<p class="mb-6 text-gray-300">Budget used: <span class="text-yellow-400">€{{ "%.1f"|format(total_cost) }} / €{{ "%.0f"|format(salary_cap) }}</span> &middot; Riders: <span class="text-yellow-400">{{ roster|length }} / {{ roster_size }}</span></p>
+<p class="mb-2 text-gray-300">Budget used: <span class="text-yellow-400">€{{ "%.1f"|format(total_cost) }} / €{{ "%.0f"|format(salary_cap) }}</span> &middot; Riders: <span class="text-yellow-400">{{ roster|length }} / {{ roster_size }}</span></p>
+
+{% if stage %}
+<p class="mb-6 text-sm {% if locked %}text-red-400{% else %}text-green-400{% endif %}">
+    Stage {{ stage.stage_number }} ({{ stage.date.strftime("%b %d") }}):
+    {% if locked %}🔒 Locked - transfers and captain picks are frozen until results sync.
+    {% else %}🔓 Open - pick your captain and make transfers before lockout at {{ stage.lockout_at.strftime("%b %d, %H:%M UTC") }}.
+    {% endif %}
+</p>
+{% else %}
+<p class="mb-6 text-sm text-gray-400">No upcoming stage scheduled.</p>
+{% endif %}
+
+{% if needs_replacement %}
+<div class="bg-red-900 border border-red-600 text-red-200 p-4 rounded mb-6">
+    <p class="font-semibold mb-2">⚠️ Action needed: {{ needs_replacement|length }} rider(s) on your roster are out of the race (DNF/DNS).</p>
+    <p class="text-sm mb-3">Drop them below and pick a replacement from Browse Riders - this is always allowed, even if the current stage is locked.</p>
+    <ul class="space-y-1">
+        {% for r in needs_replacement %}
+        <li class="flex justify-between items-center bg-red-950 p-2 rounded">
+            <span>{{ r.name }} <span class="text-red-400 text-xs">(OUT)</span></span>
+            <form action="/drop/{{ r.id }}" method="post">
+                <button type="submit" class="text-yellow-400 hover:text-yellow-300 text-sm font-semibold">Drop &amp; Replace</button>
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
 
 {% if roster %}
 <ul class="divide-y divide-gray-800 mb-6">
     {% for r in roster %}
-    <li class="p-3 flex justify-between items-center">
-        <span>{{ r.name }} <span class="text-gray-400 text-sm">({{ r.rider_type }}, {{ r.team }})</span></span>
-        <span class="text-yellow-400">€{{ "%.1f"|format(r.price) }}</span>
+    <li class="p-3 flex justify-between items-center {% if not r.is_active %}opacity-50{% endif %}">
+        <span>
+            {{ r.name }}
+            <span class="text-gray-400 text-sm">({{ r.rider_type }}, {{ r.team }})</span>
+            {% if r.id == current_captain_id %}<span class="text-yellow-400 text-xs ml-1">★ CAPTAIN (2x)</span>{% endif %}
+            {% if not r.is_active %}<span class="text-red-400 text-xs ml-1">OUT</span>{% endif %}
+        </span>
+        <span class="flex items-center space-x-3">
+            <span class="text-yellow-400">€{{ "%.1f"|format(r.price) }}</span>
+            {% if r.is_active %}
+                {% if not locked %}
+                    {% if r.id != current_captain_id %}
+                    <form action="/captain/{{ r.id }}" method="post">
+                        <button type="submit" class="text-xs text-gray-300 hover:text-yellow-400 border border-gray-600 rounded px-2 py-1">Make Captain</button>
+                    </form>
+                    {% endif %}
+                    <form action="/drop/{{ r.id }}" method="post">
+                        <button type="submit" class="text-xs text-red-400 hover:text-red-300">Drop</button>
+                    </form>
+                {% endif %}
+            {% endif %}
+        </span>
     </li>
     {% endfor %}
 </ul>
@@ -17,7 +64,9 @@
 <p class="text-gray-400 mb-6">You haven't drafted any riders yet. <a href="/riders" class="text-yellow-400">Browse riders →</a></p>
 {% endif %}
 
+{% if not locked %}
 <form action="/clear-team" method="post" onsubmit="return confirm('Clear your entire roster? This cannot be undone.');">
     <button type="submit" class="text-red-400 hover:text-red-300 text-sm">Clear Team</button>
 </form>
+{% endif %}
 {% endblock %}

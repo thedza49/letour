@@ -2,7 +2,11 @@
 {% block title %}Riders - LeTour Fantasy{% endblock %}
 {% block content %}
 <h1 class="text-2xl font-bold mb-2">Browse Riders</h1>
-<p class="mb-4 text-gray-300">Budget used: <span class="text-yellow-400">€{{ "%.1f"|format(total_spent) }} / €{{ "%.0f"|format(salary_cap) }}</span> &middot; Roster: <span class="text-yellow-400">{{ roster_count }} / {{ roster_size }}</span></p>
+<p class="mb-2 text-gray-300">Budget used: <span class="text-yellow-400">€{{ "%.1f"|format(total_spent) }} / €{{ "%.0f"|format(salary_cap) }}</span> &middot; Roster: <span class="text-yellow-400">{{ roster_count }} / {{ roster_size }}</span></p>
+
+{% if locked %}
+<p class="mb-4 text-sm text-red-400">🔒 Stage {{ stage.stage_number }} is locked - transfers are frozen until results sync. You can still drop a rider who DNF'd/DNS'd from My Team.</p>
+{% endif %}
 
 <table class="w-full text-left">
     <thead class="text-gray-400 text-sm border-b border-gray-700">
@@ -16,14 +20,18 @@
     </thead>
     <tbody>
         {% for r in riders %}
-        <tr class="border-b border-gray-800 {% if r.id in drafted_ids %}bg-gray-800{% endif %}">
-            <td class="p-2">{{ r.name }}</td>
+        <tr class="border-b border-gray-800 {% if r.id in drafted_ids %}bg-gray-800{% endif %} {% if not r.is_active %}opacity-50{% endif %}">
+            <td class="p-2">{{ r.name }}{% if not r.is_active %} <span class="text-red-400 text-xs">(OUT)</span>{% endif %}</td>
             <td class="p-2 text-gray-400">{{ r.team }}</td>
             <td class="p-2 text-gray-400">{{ r.rider_type }}</td>
             <td class="p-2">€{{ "%.1f"|format(r.price) }}</td>
             <td class="p-2">
                 {% if r.id in drafted_ids %}
                 <span class="text-green-400 text-sm">Drafted</span>
+                {% elif not r.is_active %}
+                <span class="text-gray-500 text-sm">Out of race</span>
+                {% elif locked %}
+                <span class="text-gray-500 text-sm">Locked</span>
                 {% elif roster_count >= roster_size %}
                 <span class="text-gray-500 text-sm">Roster full</span>
                 {% elif total_spent + r.price > salary_cap %}

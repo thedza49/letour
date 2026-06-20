@@ -2,7 +2,23 @@
 {% block title %}Home - LeTour Fantasy{% endblock %}
 {% block content %}
 <h1 class="text-4xl font-bold mb-2">Welcome, {{ coach }}</h1>
-<p class="text-gray-400 mb-8">Budget used: <span class="text-yellow-400">€{{ "%.1f"|format(total_spent) }} / €{{ "%.0f"|format(salary_cap) }}</span> &middot; Riders drafted: <span class="text-yellow-400">{{ roster_count }} / {{ roster_size }}</span></p>
+<p class="text-gray-400 mb-4">Budget used: <span class="text-yellow-400">€{{ "%.1f"|format(total_spent) }} / €{{ "%.0f"|format(salary_cap) }}</span> &middot; Riders drafted: <span class="text-yellow-400">{{ roster_count }} / {{ roster_size }}</span></p>
+
+{% if stage %}
+<p class="mb-4 text-sm {% if stage.is_locked() %}text-red-400{% else %}text-green-400{% endif %}">
+    Stage {{ stage.stage_number }} ({{ stage.date.strftime("%b %d") }}):
+    {% if stage.is_locked() %}🔒 Locked
+    {% else %}🔓 Open until {{ stage.lockout_at.strftime("%b %d, %H:%M UTC") }}
+    {% endif %}
+</p>
+{% endif %}
+
+{% if needs_replacement %}
+<div class="bg-red-900 border border-red-600 text-red-200 p-3 rounded mb-6 text-sm">
+    ⚠️ {{ needs_replacement|length }} rider(s) on your roster are out of the race.
+    <a href="/my-team" class="text-yellow-400 underline">Fix your roster →</a>
+</div>
+{% endif %}
 
 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
     <a href="/riders" class="bg-gray-800 hover:bg-gray-700 p-8 rounded-xl text-center">
