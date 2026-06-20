@@ -9,7 +9,10 @@ from dotenv import load_dotenv
 from app.models import Rider, User, SessionLocal, SALARY_CAP, ROSTER_SIZE
 from app.auth import router as auth_router, get_current_user
 
-load_dotenv()
+# Load app/.env explicitly so this works regardless of which directory
+# uvicorn is launched from.
+_ENV_PATH = os.path.join(os.path.dirname(__file__), ".env")
+load_dotenv(_ENV_PATH)
 
 app = FastAPI()
 
