@@ -9,9 +9,11 @@ passlib[bcrypt]
 bcrypt<4.0
 itsdangerous
 
-# Needed later (Phase 2/3 - rider import automation, scoring scheduler)
+# Phase C: rider import + results sync
+procyclingstats
+
+# Possibly needed later
 # alembic
 # python-jose[cryptography]
-# procyclingstats
 # apscheduler
 # pandas
