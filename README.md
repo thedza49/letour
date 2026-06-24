@@ -3,10 +3,54 @@
 A fantasy cycling app for a private league of 3 coaches drafting riders for the
 2026 Tour de France. Hosted on Daniel's Oracle Cloud VM.
 
-## Status as of June 23, 2026 — Phase C complete (code), pending real data
+## Status as of June 23, 2026 — Phase C live and verified on production
 
-**New in Phase C:**
-- **Scoring engine** (`app/scoring.py`): every stage now produces real
+Phase C is deployed on the Oracle VM and has been end-to-end tested
+against the real production database (not just locally) — login,
+drafting, and a full fake-stage scoring run were all confirmed working
+on the live site.
+
+**What's confirmed working on the live VM:**
+- Schema migration (`migrate_to_phase_c.py`) ran clean against the
+  existing Phase B database.
+- App restarted successfully and serves `/login` (200 OK).
+- A live scoring test was run against Team Dza's real roster (Tadej
+  Pogacar, Remco Evenepoel, Jasper Philipsen) using fake `StageResult`
+  rows for stage 1: Pogacar finished 1st and held yellow, Evenepoel
+  finished 5th, Philipsen DNF'd, and Pogacar was captained. The
+  scoring engine correctly computed 145.0 points
+  (`(50 + 15) × 2` captain multiplier `+ 15 + 0`), and that number
+  correctly showed up on the My Team page's season points and scoring
+  history sections.
+- Coach login was reset — all three coach accounts
+  (`dvpetta@gmail.com` / Team Dza, `robert@rpetta.com` / Team Blaster,
+  `petta.marc@gmail.com` / Team MP) currently share the same simple
+  password for convenience. Fine for a private 3-person league, but
+  worth knowing if that ever needs to be tightened up.
+
+**⚠️ Open item before the real Tour starts — stage 1 needs resetting.**
+The live test above left stage 1 marked `results_synced = True` with
+fake `StageResult` rows still in the database. `sync_results.py` will
+skip any stage already marked synced, so if this isn't cleaned up
+before July 4, the real stage 1 results will never get pulled. Reset
+it with:
+```bash
+cd ~/letour && source venv/bin/activate
+python3 -c "
+from app.models import SessionLocal, Stage, DailyRoster, StageResult
+db = SessionLocal()
+stage1 = db.query(Stage).filter(Stage.stage_number == 1).first()
+db.query(StageResult).filter(StageResult.stage_id == stage1.id).delete()
+db.query(DailyRoster).filter(DailyRoster.stage_id == stage1.id).delete()
+stage1.results_synced = False
+db.commit()
+print('Stage 1 reset - ready for real results.')
+db.close()
+"
+```
+
+**What Phase C added:**
+- **Scoring engine** (`app/scoring.py`): every stage produces real
   points. Finish position earns points (1st through 20th+, see table
   below), holding a classification jersey (yellow/green/polka-dot/white)
   after the stage adds a bonus on top, and whichever rider a coach
@@ -16,12 +60,19 @@ A fantasy cycling app for a private league of 3 coaches drafting riders for the
   scrapes procyclingstats.com for the day's finish order and jersey
   holders, stores them, scores every coach, and marks the stage
   `results_synced` — which is what unlocks transfers and captain picks
-  for the next stage.
+  for the next stage. Not yet running on a cron schedule (see "Action
+  needed" below).
 - **Real rider startlist import** (`import_startlist.py`): one-time
-  script that replaces the 12 placeholder riders with the real ~180-
-  rider Tour startlist from procyclingstats, priced by world ranking
-  tier (see "Known placeholder/approximate data" below — pricing is a
-  reasonable starting model, not an official number from anywhere).
+  script meant to replace the 12 placeholder riders with the real
+  ~180-rider Tour startlist from procyclingstats, priced by world
+  ranking tier. **Tried on June 23 — procyclingstats hasn't published
+  the 2026 startlist yet** (the script failed cleanly with "Failed to
+  fetch the startlist," which is expected this far before race day).
+  All 3 coaches' rosters are still drafted from the 12 placeholder
+  riders for now. Re-run this every few days as race day approaches.
+- **Season points + scoring history on Home and My Team** — both pages
+  now show a running "Season points" total, and My Team lists a
+  per-stage points breakdown once stages start syncing.
 
 **Scoring rules (tune freely in `app/scoring.py` — nothing else
 hardcodes these numbers):**
@@ -48,32 +99,25 @@ hardcodes these numbers):**
 A coach's captain pick has their total stage score (finish + jersey
 bonus) doubled. Bonuses stack if a rider holds more than one jersey.
 
-## Action needed before this goes live
+## Action needed before this goes live for real
 
-1. **Pull this onto the Oracle VM** (see "Deploying this update" below).
-2. **Run the schema migration FIRST, before anything else** —
-   `python3 migrate_to_phase_c.py`. This one is order-sensitive: it adds
-   a `pcs_url` column to the existing `riders` table using a raw SQLite
-   connection, deliberately avoiding `app.models` — because importing
-   `app.models` against an un-migrated database crashes immediately
-   (the new Rider model expects a column that doesn't exist yet). Run
-   this before starting the app, before `commissioner_tools.py`, before
-   anything else that touches the database.
-3. **Run `python3 import_startlist.py` once procyclingstats publishes
-   the 2026 startlist** (typically a few days before race day — it
-   will likely return nothing if you run it too early in June). Safe
-   to re-run as the startlist firms up; it upserts by rider, it doesn't
-   duplicate.
-4. **Set up the daily sync as a cron job** once the race starts:
+1. ~~Pull this onto the Oracle VM.~~ ✅ Done June 23.
+2. ~~Run the schema migration.~~ ✅ Done June 23 —
+   `migrate_to_phase_c.py` ran clean.
+3. **Reset stage 1's fake test data** — see the warning above. This is
+   the one must-do item before July 4.
+4. **Re-run `python3 import_startlist.py`** every few days until
+   procyclingstats publishes the 2026 startlist. As of June 23 it
+   hasn't yet.
+5. **Set up the daily sync as a cron job** before the race starts:
    ```
    # crontab -e — runs ~2 hours after a typical Tour stage finish (stage
    # finishes are usually mid-afternoon CEST; adjust to taste)
    0 16 * * * cd /home/ubuntu/letour && /home/ubuntu/letour/venv/bin/python3 sync_results.py >> /home/ubuntu/letour/sync.log 2>&1
    ```
-   Safe to run more than once a day if you want extra margin — it's a
-   no-op once a stage is already marked synced, unless you pass
-   `--force`.
-5. **Adjust lockout times if you haven't already** — same as Phase B,
+   Not yet confirmed installed — double check with `crontab -l` on
+   the VM.
+6. **Adjust lockout times if you haven't already** — same as Phase B,
    via `commissioner_tools.py set-lockout`.
 
 ## Overview
@@ -114,6 +158,23 @@ ADMIN_EMAIL=your-email@example.com
 Create the 3 coach accounts (one-time, safe to re-run):
 ```bash
 python3 create_coaches.py
+```
+Note: as of June 23, all three coaches share the same simple password
+("tour") rather than the unique passwords `create_coaches.py` prompts
+for individually — it was reset directly in the database for
+convenience during testing. Fine for a private 3-person league; reset
+any account's password by hand if you ever want it unique again:
+```bash
+python3 -c "
+from passlib.context import CryptContext
+from app.models import SessionLocal, User
+pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
+db = SessionLocal()
+user = db.query(User).filter(User.email == 'coach@example.com').first()
+user.password_hash = pwd_context.hash('new-password-here')
+db.commit()
+db.close()
+"
 ```
 
 Seed the 21 stages:
