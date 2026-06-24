@@ -67,6 +67,31 @@ def get_inactive_roster_riders(db, user_id):
     return [r for r in roster if not r.is_active]
 
 
+def get_scoring_history(db, user_id):
+    """Returns a list of {stage, points} for every synced stage this
+    coach has a DailyRoster row for, ordered by stage number. Stages
+    where the coach didn't pick a captain (and so has no DailyRoster
+    row at all, per the scoring engine's design - see app/scoring.py)
+    are omitted rather than shown as zero, since "no row" and "scored
+    zero points" mean different things and conflating them would be
+    misleading on the My Team history view."""
+    rows = (
+        db.query(DailyRoster)
+        .join(Stage, DailyRoster.stage_id == Stage.id)
+        .filter(DailyRoster.user_id == user_id, Stage.results_synced.is_(True))
+        .order_by(Stage.stage_number)
+        .all()
+    )
+    return [{"stage": row.stage, "points": row.points or 0.0} for row in rows]
+
+
+def get_season_total(db, user_id):
+    """Sum of points across every synced stage for this coach. Used on
+    Home and My Team to show a running season total."""
+    history = get_scoring_history(db, user_id)
+    return sum(entry["points"] for entry in history)
+
+
 @app.get("/")
 async def home(request: Request, db: Session = Depends(get_db)):
     user = require_coach(request, db)
@@ -77,6 +102,7 @@ async def home(request: Request, db: Session = Depends(get_db)):
     total_spent = sum(r.price for r in roster)
     stage = get_current_stage(db)
     needs_replacement = get_inactive_roster_riders(db, user.id)
+    season_total = get_season_total(db, user.id)
 
     return templates.TemplateResponse(
         request,
@@ -89,6 +115,7 @@ async def home(request: Request, db: Session = Depends(get_db)):
             "roster_size": ROSTER_SIZE,
             "stage": stage,
             "needs_replacement": needs_replacement,
+            "season_total": season_total,
         },
     )
 
@@ -197,6 +224,8 @@ async def my_team(request: Request, db: Session = Depends(get_db)):
     stage = get_current_stage(db)
     locked = stage.is_locked() if stage else False
     needs_replacement = get_inactive_roster_riders(db, user.id)
+    season_total = get_season_total(db, user.id)
+    scoring_history = get_scoring_history(db, user.id)
 
     current_captain_id = None
     if stage:
@@ -221,6 +250,8 @@ async def my_team(request: Request, db: Session = Depends(get_db)):
             "locked": locked,
             "current_captain_id": current_captain_id,
             "needs_replacement": needs_replacement,
+            "season_total": season_total,
+            "scoring_history": scoring_history,
         },
     )
 

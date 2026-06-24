@@ -41,6 +41,11 @@ class Rider(Base):
     rider_type = Column(String)
     uci_rank = Column(Integer, nullable=True)
     is_active = Column(Boolean, default=True)  # flips to False on DNF/DNS
+    # procyclingstats' stable per-rider URL slug, e.g. "rider/tadej-pogacar".
+    # This is how import_startlist.py and sync_results.py match a PCS row
+    # back to our Rider record - names alone are too fragile (accents,
+    # nicknames, "POGAČAR Tadej" vs "Tadej Pogacar" formatting differences).
+    pcs_url = Column(String, unique=True, nullable=True, index=True)
 
 
 class Stage(Base):
@@ -76,8 +81,8 @@ class TeamRider(Base):
 
 class DailyRoster(Base):
     """Tracks which rider is captain (2x multiplier) for each coach,
-    per stage. One row per (user, stage). points is filled in later
-    by the Phase C scoring engine."""
+    per stage. One row per (user, stage). points is filled in by the
+    Phase C scoring engine (app/scoring.py) once a stage syncs."""
     __tablename__ = "daily_rosters"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -90,6 +95,37 @@ class DailyRoster(Base):
     user = relationship("User")
     stage = relationship("Stage")
     captain_rider = relationship("Rider")
+
+
+class StageResult(Base):
+    """One row per rider, per stage: their finish position and whether
+    they held one of the four classification jerseys after that stage
+    finished. Populated by sync_results.py once a day, ~2 hours after
+    the stage typically ends. This is the raw data app/scoring.py reads
+    to compute each coach's points for that stage.
+
+    finish_position is NULL when did_not_finish is True (a rider who
+    started but dropped out mid-stage, or didn't start at all - both
+    score 0 finish points per the league scoring rules)."""
+    __tablename__ = "stage_results"
+    id = Column(Integer, primary_key=True, index=True)
+    stage_id = Column(Integer, ForeignKey("stages.id"), nullable=False)
+    rider_id = Column(Integer, ForeignKey("riders.id"), nullable=False)
+    finish_position = Column(Integer, nullable=True)
+    did_not_finish = Column(Boolean, default=False)
+
+    # Jersey holders after this stage. At most one rider per stage should
+    # have each of these set True - sync_results.py enforces that, but it
+    # isn't a DB constraint since SQLite makes that fiddly across rows.
+    holds_yellow = Column(Boolean, default=False)     # GC leader
+    holds_green = Column(Boolean, default=False)      # points/sprint leader
+    holds_polka_dot = Column(Boolean, default=False)  # KOM/mountains leader
+    holds_white = Column(Boolean, default=False)      # best young rider
+
+    __table_args__ = (UniqueConstraint("stage_id", "rider_id", name="uq_stage_rider_result"),)
+
+    stage = relationship("Stage")
+    rider = relationship("Rider")
 
 
 engine = create_engine(
