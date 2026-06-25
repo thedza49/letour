@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>LE TOUR - Fantasy Racing</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;700;800&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@500;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@100..900&amp;family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .mountain-path {
+            clip-path: polygon(0% 100%, 20% 80%, 40% 85%, 60% 40%, 80% 45%, 100% 0%, 100% 100%);
+        }
+        .road-line {
+            stroke-dasharray: 8 12;
+            animation: dash 20s linear infinite;
+        }
+        @keyframes dash {
+            to { stroke-dashoffset: -1000; }
+        }
+        .asphalt-texture {
+            background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h40v40H0V0zm1 1h38v38H1V1z' fill='%231E1E22' fill-opacity='0.1' fill-rule='evenodd'/%3E%3C/svg%3E");
+        }
+        .tricolor-border {
+            border-top: 4px solid;
+            border-image: linear-gradient(to right, #002395 33%, #ffffff 33%, #ffffff 66%, #ed2939 66%) 1;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-surface": "#e5e1e4",
+                        "outline-variant": "#4c4732",
+                        "on-error-container": "#ffdad6",
+                        "primary-container": "#ffe000",
+                        "primary-fixed-dim": "#e2c600",
+                        "tertiary-container": "#ffd7d8",
+                        "tertiary-fixed-dim": "#ffb3b6",
+                        "on-error": "#690005",
+                        "background": "#131315",
+                        "surface-tint": "#e2c600",
+                        "surface": "#131315",
+                        "surface-container-highest": "#353437",
+                        "surface-container-lowest": "#0e0e10",
+                        "surface-container-high": "#2a2a2c",
+                        "on-tertiary-fixed": "#40000c",
+                        "on-tertiary": "#68001a",
+                        "on-primary": "#383000",
+                        "error": "#ffb4ab",
+                        "tertiary": "#fffcff",
+                        "primary-fixed": "#ffe33b",
+                        "secondary": "#75dc8b",
+                        "on-background": "#e5e1e4",
+                        "on-primary-container": "#716300",
+                        "on-primary-fixed-variant": "#524700",
+                        "primary": "#fffcff",
+                        "secondary-fixed": "#91f9a4",
+                        "on-secondary-fixed-variant": "#005323",
+                        "surface-dim": "#131315",
+                        "on-secondary-container": "#c2ffc8",
+                        "error-container": "#93000a",
+                        "on-primary-fixed": "#211b00",
+                        "on-secondary": "#003916",
+                        "inverse-primary": "#6c5e00",
+                        "on-secondary-fixed": "#00210a",
+                        "surface-bright": "#39393b",
+                        "on-tertiary-fixed-variant": "#920028",
+                        "inverse-on-surface": "#303032",
+                        "secondary-container": "#007e39",
+                        "surface-container": "#201f21",
+                        "surface-container-low": "#1b1b1d",
+                        "on-tertiary-container": "#c7003a",
+                        "secondary-fixed-dim": "#75dc8b",
+                        "surface-variant": "#353437",
+                        "on-surface": "#e5e1e4",
+                        "outline": "#979177",
+                        "on-surface-variant": "#cec6ab",
+                        "tertiary-fixed": "#ffdada"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "lg": "24px",
+                        "md": "16px",
+                        "margin-desktop": "32px",
+                        "xl": "32px",
+                        "base": "4px",
+                        "xs": "4px",
+                        "gutter": "16px",
+                        "sm": "8px",
+                        "margin-mobile": "16px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Barlow Condensed"],
+                        "headline-sm": ["Barlow Condensed"],
+                        "display-lg": ["Barlow Condensed"],
+                        "stat-sm": ["JetBrains Mono"],
+                        "body-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "stat-lg": ["JetBrains Mono"],
+                        "display-lg-mobile": ["Barlow Condensed"],
+                        "label-caps": ["Barlow Condensed"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                        "headline-sm": ["20px", {"lineHeight": "24px", "fontWeight": "700"}],
+                        "display-lg": ["48px", {"lineHeight": "52px", "letterSpacing": "-0.01em", "fontWeight": "800"}],
+                        "stat-sm": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "stat-lg": ["32px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "display-lg-mobile": ["36px", {"lineHeight": "40px", "fontWeight": "800"}],
+                        "label-caps": ["13px", {"lineHeight": "16px", "letterSpacing": "0.08em", "fontWeight": "700"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen pb-32">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky bg-surface border-b border-outline-variant z-50 flex justify-between items-center px-margin-mobile py-sm">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary text-headline-md">leaderboard</span>
+<h1 class="font-display-lg text-display-lg-mobile uppercase tracking-tighter text-primary">LE TOUR</h1>
+</div>
+<div class="bg-primary-container text-on-primary-container px-sm py-xs rounded-lg font-label-caps text-label-caps">
+            RANK: #1,240
+        </div>
+</header>
+<main class="px-margin-mobile mt-lg max-w-4xl mx-auto space-y-lg">
+<!-- Daily Stage Header -->
+<section class="space-y-xs">
+<div class="flex items-center gap-xs text-on-surface-variant font-label-caps text-label-caps">
+<span class="w-8 h-px bg-outline-variant"></span>
+<span>LIVE UPDATES</span>
+</div>
+<h2 class="font-headline-md text-headline-md uppercase">Stage 15: Nice to Col de la Couillole</h2>
+</section>
+<!-- Race Up the Hill Visualization -->
+<section class="relative bg-surface-container rounded-xl overflow-hidden border border-outline-variant aspect-[16/10] asphalt-texture shadow-xl">
+<!-- Topographic Background Decoration -->
+<div class="absolute inset-0 opacity-20 pointer-events-none">
+<svg height="100%" preserveaspectratio="none" viewbox="0 0 100 100" width="100%">
+<path d="M0,50 Q25,30 50,50 T100,50" fill="none" stroke="white" stroke-width="0.5"></path>
+<path d="M0,60 Q25,40 50,60 T100,60" fill="none" stroke="white" stroke-width="0.5"></path>
+<path d="M0,70 Q25,50 50,70 T100,70" fill="none" stroke="white" stroke-width="0.5"></path>
+</svg>
+</div>
+<div class="absolute inset-x-0 bottom-0 h-full flex flex-col justify-end p-lg">
+<!-- Hill Road Canvas -->
+<div class="relative w-full h-full">
+<svg class="absolute inset-0 w-full h-full overflow-visible" viewbox="0 0 400 200"><path d="M 0 180 Q 100 170 200 100 T 400 20" fill="none" opacity="0.8" stroke="#FFE000" stroke-width="2"></path><path d="M 0 190 Q 100 185 200 130 T 400 60" fill="none" opacity="0.6" stroke="#75DC8B" stroke-width="2"></path><path d="M 0 200 Q 100 195 200 160 T 400 110" fill="none" opacity="0.4" stroke="#CEC6AB" stroke-width="2"></path><g transform="translate(320, 45)"><circle fill="#FFE000" r="12"></circle><text class="material-symbols-outlined text-on-primary-container" style="font-size: 12px;" x="-6" y="4">directions_bike</text></g><g transform="translate(240, 105)"><circle fill="#75DC8B" r="12"></circle><text class="material-symbols-outlined text-on-secondary" style="font-size: 12px;" x="-6" y="4">directions_bike</text></g><g transform="translate(160, 165)"><circle fill="#353437" r="12" stroke="#979177"></circle><text class="material-symbols-outlined text-on-surface" style="font-size: 12px;" x="-6" y="4">directions_bike</text></g></svg>
+<!-- Finish Flag -->
+<div class="absolute top-0 right-0 p-sm text-primary-container flex flex-col items-end">
+<span class="material-symbols-outlined text-display-lg-mobile" style="font-variation-settings: 'FILL' 1;">flag</span>
+<span class="font-label-caps text-[10px] bg-background/80 px-xs">HC SUMMIT</span>
+</div>
+</div>
+</div>
+<!-- Floating Data Label -->
+<div class="absolute bottom-md left-md bg-background/90 border border-outline-variant p-sm rounded shadow-lg backdrop-blur-sm">
+<p class="font-label-caps text-[10px] text-on-surface-variant">CURRENT GAP</p>
+<p class="font-stat-sm text-primary-container">+02' 14"</p>
+</div>
+</section>
+<!-- Summary Table -->
+<section class="space-y-sm">
+<div class="flex justify-between items-end">
+<h3 class="font-headline-sm text-headline-sm uppercase tracking-tight">Roster Leaderboard</h3>
+<button class="text-primary-container font-label-caps text-xs hover:underline">VIEW FULL CLASSIFICATION</button>
+</div>
+<div class="bg-surface-container rounded border border-outline-variant overflow-hidden">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-high border-b border-outline-variant">
+<tr>
+<th class="px-md py-sm font-label-caps text-[11px] text-on-surface-variant">POS</th>
+<th class="px-md py-sm font-label-caps text-[11px] text-on-surface-variant">TEAM NAME</th>
+<th class="px-md py-sm font-label-caps text-[11px] text-on-surface-variant text-right">DAILY</th>
+<th class="px-md py-sm font-label-caps text-[11px] text-on-surface-variant text-right">TOTAL</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/30">
+<tr class="bg-primary-container/10">
+<td class="px-md py-md font-stat-sm text-primary-container">01</td>
+<td class="px-md py-md font-body-md font-bold">Les Bleus de Paris</td>
+<td class="px-md py-md font-stat-sm text-right text-secondary">+420</td>
+<td class="px-md py-md font-stat-sm text-right">12,450</td>
+</tr>
+<tr>
+<td class="px-md py-md font-stat-sm text-on-surface-variant">02</td>
+<td class="px-md py-md font-body-md">Velo Club Lyon</td>
+<td class="px-md py-md font-stat-sm text-right text-secondary">+385</td>
+<td class="px-md py-md font-stat-sm text-right">11,920</td>
+</tr>
+<tr>
+<td class="px-md py-md font-stat-sm text-on-surface-variant">03</td>
+<td class="px-md py-md font-body-md">Grimpeurs de l'Alpe</td>
+<td class="px-md py-md font-stat-sm text-right text-secondary">+310</td>
+<td class="px-md py-md font-stat-sm text-right">11,480</td>
+</tr>
+<tr>
+<td class="px-md py-md font-stat-sm text-on-surface-variant">04</td>
+<td class="px-md py-md font-body-md">Etape Masters</td>
+<td class="px-md py-md font-stat-sm text-right text-secondary">+290</td>
+<td class="px-md py-md font-stat-sm text-right">10,840</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Featured Rider Card (Bento Style) -->
+<section class="grid grid-cols-2 gap-md">
+<div class="col-span-2 md:col-span-1 bg-surface-container-high rounded-xl p-md tricolor-border border border-outline-variant relative overflow-hidden group hover:border-primary-container transition-colors">
+<div class="flex justify-between items-start relative z-10">
+<div>
+<p class="font-label-caps text-[10px] text-primary-container">STAGE STAR</p>
+<h4 class="font-headline-sm text-headline-sm uppercase">Tadej Pogačar</h4>
+<p class="font-body-md text-on-surface-variant">UAE Team Emirates</p>
+</div>
+<div class="bg-primary-container w-10 h-10 rounded-full flex items-center justify-center text-on-primary-container">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+</div>
+<div class="mt-lg flex items-end justify-between relative z-10">
+<div class="space-y-xs">
+<p class="font-label-caps text-[10px] text-on-surface-variant uppercase">Points Gained</p>
+<p class="font-stat-lg text-stat-lg text-primary-container">+150</p>
+</div>
+<img class="w-24 h-24 object-cover rounded-lg border border-outline-variant grayscale group-hover:grayscale-0 transition-all" data-alt="A professional cycling race photograph of a rider in a yellow jersey climbing a steep mountain road under bright sunlight. The aesthetic is high-contrast with deep shadows and intense highlights, mirroring the professional French cycling atmosphere. The background shows blurred alpine landscapes with spectators lining the road." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDaQKXSSNistc1EUncWxxpEEHgNH5E-gfujrjf6GA_IDjjzMr4VXEoOrPaqp0gv960ybYM8eHOeXocuqo0I7AOFcFHCUI_mTqmde6sMtZwNoclUTTTggKqwFqBKMQ8jJmDSfU_1MdqFUV4ChRGE8_d3Sbe3fB4EAOrL5zvwNs8ZnBc9pnHLdZ5QaIMWQa9uUIHeZnK6RCA_lgzjJV161YqzsYJ_-icfJP17hYzBHygwFdaPZdVHt8wm2bStThdgP6tbYaoKXwiL3kc"/>
+</div>
+</div>
+<div class="col-span-2 md:col-span-1 bg-surface-container-high rounded-xl p-md border border-outline-variant flex flex-col gap-md"><div class="flex justify-between items-center"><p class="font-label-caps text-label-caps text-primary-container">DAILY JERSEY WINNERS</p><span class="material-symbols-outlined text-on-surface-variant">military_tech</span></div><div class="space-y-sm"><div class="flex items-center gap-sm p-sm bg-background/50 rounded border border-outline-variant/20"><div class="w-8 h-8 rounded-full bg-[#FFE000] flex items-center justify-center text-on-primary"><span class="material-symbols-outlined text-sm">checkroom</span></div><div><p class="font-label-caps text-[10px] text-on-surface-variant">YELLOW JERSEY</p><p class="font-bold text-sm">T. POGAČAR (UAE)</p></div></div><div class="flex items-center gap-sm p-sm bg-background/50 rounded border border-outline-variant/20"><div class="w-8 h-8 rounded-full bg-[#75DC8B] flex items-center justify-center text-on-secondary"><span class="material-symbols-outlined text-sm">checkroom</span></div><div><p class="font-label-caps text-[10px] text-on-surface-variant">GREEN JERSEY</p><p class="font-bold text-sm">B. GIRMAY (IWA)</p></div></div><div class="flex items-center gap-sm p-sm bg-background/50 rounded border border-outline-variant/20"><div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-error"><span class="material-symbols-outlined text-sm">fiber_manual_record</span></div><div><p class="font-label-caps text-[10px] text-on-surface-variant">POLKA DOT</p><p class="font-bold text-sm">R. CARAPAZ (EFE)</p></div></div><div class="flex items-center gap-sm p-sm bg-background/50 rounded border border-outline-variant/20"><div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-on-surface"><span class="material-symbols-outlined text-sm">checkroom</span></div><div><p class="font-label-caps text-[10px] text-on-surface-variant">WHITE JERSEY</p><p class="font-bold text-sm">R. EVENEPOEL (SOQ)</p></div></div></div></div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-margin-mobile pb-sm pt-xs bg-surface-container border-t border-outline-variant z-50">
+<a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-full px-lg py-xs active:scale-90 transition-all duration-150" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
+<span class="font-label-caps text-[11px] mt-xs">HOME</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant px-lg py-xs hover:bg-surface-container-high transition-colors active:scale-90" href="#">
+<span class="material-symbols-outlined">directions_bike</span>
+<span class="font-label-caps text-[11px] mt-xs">MY TEAM</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant px-lg py-xs hover:bg-surface-container-high transition-colors active:scale-90" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-label-caps text-[11px] mt-xs">PLAYERS</span>
+</a>
+</nav>
+<script>
+        // Micro-interaction for road icons
+        document.querySelectorAll('g').forEach(item => {
+            item.addEventListener('mouseenter', () => {
+                item.style.cursor = 'pointer';
+            });
+            item.addEventListener('click', () => {
+                alert('Team Details Coming Soon!');
+            });
+        });
+    </script>
+</body></html>
