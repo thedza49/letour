@@ -1,197 +1,330 @@
+### LeTour Fantasy 2026
+
+A fantasy cycling app for a private league of 3 coaches drafting riders for the
+2026 Tour de France. Hosted on Daniel's Oracle Cloud VM.
+
+## Overview — how this app works
+
+Each coach logs in with their own email/password (no open registration —
+accounts are created once via `create_coaches.py`) and drafts a 9-rider
+roster within a €100 salary cap. Each stage, they pick one rider as captain
+for a 2x score multiplier. Transfers and captain picks lock once a stage
+starts and reopen once results are synced. If a rostered rider
+DNFs or DNSs, the coach can drop them immediately and replace them once
+transfers reopen.
+
+**Scoring engine** (`app/scoring.py`): every stage produces real points.
+Finish position earns points (1st through 20th+, see table below), holding
+a classification jersey (yellow/green/polka-dot/white) after the stage adds
+a bonus on top, and whichever rider a coach named captain has their stage
+total doubled.
+
+**Stage results sync** (`sync_results.py`): runs once a day via cron, ~2
+hours after that day's stage typically finishes. It scrapes
+procyclingstats.com for the day's finish order and jersey holders, stores
+them, scores every coach, and marks the stage `results_synced` — which is
+what unlocks transfers and captain picks for the next stage.
+
+**Real rider startlist import** (`import_startlist.py`): one-time script
+meant to replace the 12 placeholder riders with the real ~180-rider Tour
+startlist from procyclingstats, priced by world ranking tier.
+
+**Season points + scoring history on Home and My Team** — both pages show a
+running "Season points" total, and My Team lists a per-stage points
+breakdown once stages start syncing.
+
+**Scoring rules (tune freely in `app/scoring.py` — nothing else hardcodes
+these numbers):**
+
+| Finish position | Points |
+|---|---|
+| 1st | 50 |
+| 2nd | 35 |
+| 3rd | 25 |
+| 4th | 20 |
+| 5th | 15 |
+| 6th–10th | 10 |
+| 11th–20th | 5 |
+| Finished, outside top 20 | 1 |
+| DNF/DNS | 0 |
+
+| Jersey held after the stage | Bonus |
+|---|---|
+| Yellow (GC leader) | +15 |
+| Green (points leader) | +10 |
+| Polka-dot (KOM leader) | +10 |
+| White (best young rider) | +5 |
+
+A coach's captain pick has their total stage score (finish + jersey
+bonus) doubled. Bonuses stack if a rider holds more than one jersey.
+
+## Tech Stack
+
+* **Framework:** FastAPI
+* **Database:** SQLite with SQLAlchemy ORM
+* **Templates:** Jinja2 + Tailwind CSS (via CDN)
+* **Auth:** bcrypt password hashing via passlib, session cookies via Starlette
+  `SessionMiddleware` (signed using `itsdangerous`)
+* **External data:** `procyclingstats` (scrapes procyclingstats.com) for
+  the rider startlist and daily stage results
+
+## Setup & Usage (fresh install)
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+Create `app/.env` by hand (never commit this file — it's in `.gitignore`):
+```
+SECRET_KEY=<generate with: python3 -c "import secrets; print(secrets.token_hex(32))">
+DATABASE_URL=sqlite:///./letour.db
+ADMIN_EMAIL=your-email@example.com
+```
+
+Create the 3 coach accounts (one-time, safe to re-run):
+```bash
+python3 create_coaches.py
+```
+
+Seed the 21 stages:
+```bash
+python3 seed_stages.py
+```
+
+Import the real rider startlist once procyclingstats has published it
+(safe to re-run; falls back gracefully with placeholder riders if you
+run this before the startlist is up):
+```bash
+python3 import_startlist.py
+```
+
+Run the app:
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+To keep it running after closing the SSH session:
+```bash
+nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 > app.log 2>&1 &
+```
+
+## Deploying this update to an existing install (the Oracle VM)
+
+```bash
+cd ~/letour
+git fetch origin
+git reset --hard origin/main
+pip install -r requirements.txt
+python3 migrate_to_phase_c.py      # MUST run before anything else touches the DB
+python3 import_startlist.py        # once the 2026 startlist is published on procyclingstats
+```
+Then restart the running server so the new code takes effect:
+```bash
+pkill -f uvicorn
+nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 > app.log 2>&1 &
+```
+
+**Important:** `git reset --hard` only touches files Git already tracks.
+Untracked clutter (old experiments, stray `.pyc` files, leftover folders from
+earlier attempts at this project) won't be removed by this and can pile up
+over time. Periodically worth checking `git status` for an `Untracked files`
+list that's grown unexpectedly.
+
+## Commissioner tools
+
+```bash
+python3 commissioner_tools.py stages                          # list all stages + lockout state
+python3 commissioner_tools.py set-lockout 5 "2026-07-08 13:00" # adjust stage 5's lockout (UTC)
+python3 commissioner_tools.py riders                           # list all riders + active status
+python3 commissioner_tools.py deactivate <rider_id>             # mark a rider DNF/DNS
+python3 commissioner_tools.py activate <rider_id>               # undo that (e.g. data entry mistake)
+```
+
+To re-score a single stage by hand (e.g. after fixing a data mistake in
+`StageResult`), from a Python shell on the Oracle VM:
+```bash
+python3 -c "from app.scoring import recompute_stage; recompute_stage(5)"
+```
+
+## Known Placeholder/Approximate Data
+
+Until `import_startlist.py` is run against a published 2026 startlist,
+`app/models.py` still seeds the original 12 placeholder riders (real
+names, made-up prices) on a fresh install, purely so drafting is
+testable. `_archived_scripts/` contains two earlier, unfinished
+attempts at automated rider import — parked there for reference, not
+currently used (`import_startlist.py` replaces them).
+
+**Rider pricing is an approximation, not an official number from
+anywhere.** procyclingstats doesn't publish a fantasy price, so
+`import_startlist.py` tiers prices by each rider's position in PCS's
+individual world ranking (favorites cost more, similar in spirit to
+real fantasy cycling games). The exact tiers live in `PRICE_TIERS` at
+the top of that script — easy to retune before the real draft, or to
+override by hand afterward with `commissioner_tools.py`.
+
+Stage lockout times default to 11:00 UTC on race day everywhere — a
+placeholder, not the real ASO start time for each stage. Adjust via
+`commissioner_tools.py set-lockout` once official times are confirmed.
+
+**Stages are seeded with numbers and dates, but not names/routes.**
+`seed_stages.py` creates all 21 `Stage` rows with `stage_number` and
+`date` for the real July 4–26, 2026 calendar — that part's done. But
+the `Stage` model has no field for a stage's name or route (e.g. "Nice
+to Col de la Couillole"), so anywhere a redesigned page wants to show
+that kind of text, it doesn't exist in the database yet. Tracked under
+Phase E below.
+
+## Status as of June 25, 2026
+
+Phase C is deployed on the Oracle VM and confirmed working end-to-end
+against the real production database — login, drafting, and a full
+fake-stage scoring run were all verified on the live site:
+- Schema migration (`migrate_to_phase_c.py`) ran clean against the
+  existing Phase B database.
+- App restarted successfully and serves `/login` (200 OK).
+- A live scoring test was run against Team Dza's real roster (Tadej
+  Pogacar, Remco Evenepoel, Jasper Philipsen) using fake `StageResult`
+  rows for stage 1: Pogacar finished 1st and held yellow, Evenepoel
+  finished 5th, Philipsen DNF'd, and Pogacar was captained. The
+  scoring engine correctly computed 145.0 points
+  (`(50 + 15) × 2` captain multiplier `+ 15 + 0`), and that number
+  correctly showed up on the My Team page's season points and scoring
+  history sections.
+- The daily sync cron job is confirmed installed on the VM
+  (`crontab -l` verified June 24):
+  ```
+  0 16 * * * cd /home/ubuntu/letour && /home/ubuntu/letour/venv/bin/python3 sync_results.py >> /home/ubuntu/letour/sync.log 2>&1
+  ```
+- `git status` on the VM is clean — deployed code matches `origin/main`,
+  no untracked clutter beyond runtime log files.
+
+**⚠️ Open item before the real Tour starts — stage 1 needs resetting.**
+An earlier live test left stage 1 marked `results_synced = True` with
+fake `StageResult` rows still in the database. `sync_results.py` will
+skip any stage already marked synced, so if this isn't cleaned up
+before July 4, the real stage 1 results will never get pulled. Reset
+it with:
+```bash
+cd ~/letour && source venv/bin/activate
+python3 -c "
+from app.models import SessionLocal, Stage, DailyRoster, StageResult
+db = SessionLocal()
+stage1 = db.query(Stage).filter(Stage.stage_number == 1).first()
+db.query(StageResult).filter(StageResult.stage_id == stage1.id).delete()
+db.query(DailyRoster).filter(DailyRoster.stage_id == stage1.id).delete()
+stage1.results_synced = False
+db.commit()
+print('Stage 1 reset - ready for real results.')
+db.close()
+"
+```
+
+## Action needed before this goes live for real
+
+1. ~~Pull this onto the Oracle VM.~~ ✅ Done June 23.
+2. ~~Run the schema migration.~~ ✅ Done June 23 —
+   `migrate_to_phase_c.py` ran clean.
+3. **Reset stage 1's fake test data** — see the warning above. This is
+   the one must-do item before July 4.
+4. **Re-run `python3 import_startlist.py`** every few days until
+   procyclingstats publishes the 2026 startlist. As of June 23 it
+   hasn't yet.
+5. ~~Set up the daily sync as a cron job.~~ ✅ Confirmed installed
+   June 24 — see Status section above.
+6. **Adjust lockout times if you haven't already** — same as Phase B,
+   via `commissioner_tools.py set-lockout`.
+
+## Project Roadmap
+
+* [x] **Phase A:** Real per-coach auth, fixed budget/roster rules, Jinja
+  templates, fixed crash bugs, secrets out of source code, dependency and
+  dotenv-loading fixes
+* [x] **Phase B:** Captain selection (2x multiplier stored), stage/lockout
+  model with real 2026 dates, transfer add/drop history, DNF/DNS
+  replace-rider workflow
+* [x] **Phase C:** Scoring engine (finish points + jersey bonuses +
+  captain multiplier), automated daily stage results sync from
+  procyclingstats, real rider startlist import with ranking-based
+  pricing
+* [ ] **Phase D (ideas, not started):** automated DNF/DNS detection
+  from synced stage results (currently still a manual
+  `commissioner_tools.py deactivate` call), accurate per-stage lockout
+  times pulled from the official ASO schedule instead of the 11:00 UTC
+  placeholder, a standings/leaderboard page across all 3 coaches
+  (confirmed use case as of June 25: a "Roster Leaderboard" table on
+  the redesigned Home page showing each coach's daily + season point
+  totals ranked — needs a new query summing `DailyRoster.points` per
+  `User`, since today's home route only ever looks up the logged-in
+  coach's own total)
+
+**Phase E — Frontend redesign via Google Stitch (not started):**
+Daniel designed new versions of Home, My Team, and Riders in Stitch
+("Vitesse de France" design system — dark asphalt theme, Barlow
+Condensed + Inter + JetBrains Mono, full color/spacing tokens exported
+to `DESIGN.md`). Reviewed all three against the current backend on
+June 25; broken into sub-phases below since "redesign everything" was
+too large a single item to track or estimate against.
+
+**The actual design files (design system + page-by-page HTML exports +
+screenshots) live in `design/` at the repo root — see `design/README.md`.
+That folder is the source of truth for layout/styling; this section is
+the source of truth for what backend work each piece depends on. Read
+both together when implementing.**
+
+* [ ] **Phase E.1 — Per-rider stage scoring (foundation, do this
+  first):** `app/scoring.py`'s `rider_stage_points()` already computes
+  finish points + jersey bonus per rider per stage, but the result is
+  only ever persisted at the coach level (`DailyRoster.points`) —
+  there's no stored record of an individual rider's own point total,
+  whether or not they were ever captained. Need to start storing every
+  rider's points for every stage, drafted or not. This blocks three
+  separate pieces of the redesign below, so it's the one piece of real
+  schema/logic work and should land before E.2–E.4:
+    - Home's "Stage Star" card needs a featured rider's points
+    - My Team's roster cards need each rostered rider's own
+      "Last Race" / "Total Points" (not just the team's captain-driven
+      total)
+    - Riders page needs sortable "LAST" / "TOTAL" point columns across
+      the full rider pool
+* [ ] **Phase E.2 — Riders page browsing/filtering:** search box, team
+  filter, and specialty filter — straightforward query filters against
+  existing `Rider.name`, `Rider.team`, `Rider.rider_type` columns, no
+  schema change needed. Sortable LAST/TOTAL columns depend on E.1 being
+  done first. Pagination ("Showing X of Y riders") only matters once
+  the real ~180-rider startlist is imported via `import_startlist.py`
+  — moot with today's 12 placeholder riders, but worth building since
+  it'll be needed soon after.
+* [ ] **Phase E.3 — Riders page remaining budget display:** no new
+  backend logic — `salary_cap - total_spent` is already computed in
+  the `/riders` route, just isn't surfaced in the current template.
+  Don't need to re-show the full cap everywhere, just remaining.
+* [ ] **Phase E.4 — My Team editable team name:** `User.team_name` is
+  currently write-once via `create_coaches.py`. Need a new route to
+  rename a team, with the new name reflected on both My Team's header
+  and Home's welcome text.
+* [ ] **Phase E.5 — Stage name/route data:** the redesigned Home page
+  wants to show stage text like "Stage 15: Nice to Col de la
+  Couillole," but `Stage` has no name/route field — only
+  `stage_number` and `date` exist today (see "Known
+  Placeholder/Approximate Data" above). Needs a new column and a way
+  to populate it (manually via commissioner tools, or scraped
+  alongside the startlist/results sync).
+
+**Implementation note (not a roadmap item):** My Team's jersey icon on
+roster cards needs no backend change — `StageResult`'s
+`holds_yellow/green/polka_dot/white` flags already exist and update
+every stage, and the jersey shown is always last stage's holder (which
+is what we want, not a separately-tracked "season leader" concept).
+Just needs the `/my-team` route to fetch each rostered rider's most
+recent `StageResult` and the template to render a small badge.
+
+**Dropped from consideration:** a numeric "live time gap" on Home's
+stage visualization (would need real-time timing data we don't have —
+results only sync once daily after the stage ends, not live), and a
+generic numeric "rank" badge in the header (no use case for a
+3-person league).
+
 ---
-name: Vitesse de France
-colors:
-  surface: '#131315'
-  surface-dim: '#131315'
-  surface-bright: '#39393b'
-  surface-container-lowest: '#0e0e10'
-  surface-container-low: '#1b1b1d'
-  surface-container: '#201f21'
-  surface-container-high: '#2a2a2c'
-  surface-container-highest: '#353437'
-  on-surface: '#e5e1e4'
-  on-surface-variant: '#cec6ab'
-  inverse-surface: '#e5e1e4'
-  inverse-on-surface: '#303032'
-  outline: '#979177'
-  outline-variant: '#4c4732'
-  surface-tint: '#e2c600'
-  primary: '#fffcff'
-  on-primary: '#383000'
-  primary-container: '#ffe000'
-  on-primary-container: '#716300'
-  inverse-primary: '#6c5e00'
-  secondary: '#75dc8b'
-  on-secondary: '#003916'
-  secondary-container: '#007e39'
-  on-secondary-container: '#c2ffc8'
-  tertiary: '#fffcff'
-  on-tertiary: '#68001a'
-  tertiary-container: '#ffd7d8'
-  on-tertiary-container: '#c7003a'
-  error: '#ffb4ab'
-  on-error: '#690005'
-  error-container: '#93000a'
-  on-error-container: '#ffdad6'
-  primary-fixed: '#ffe33b'
-  primary-fixed-dim: '#e2c600'
-  on-primary-fixed: '#211b00'
-  on-primary-fixed-variant: '#524700'
-  secondary-fixed: '#91f9a4'
-  secondary-fixed-dim: '#75dc8b'
-  on-secondary-fixed: '#00210a'
-  on-secondary-fixed-variant: '#005323'
-  tertiary-fixed: '#ffdada'
-  tertiary-fixed-dim: '#ffb3b6'
-  on-tertiary-fixed: '#40000c'
-  on-tertiary-fixed-variant: '#920028'
-  background: '#131315'
-  on-background: '#e5e1e4'
-  surface-variant: '#353437'
-typography:
-  display-lg:
-    fontFamily: Barlow Condensed
-    fontSize: 48px
-    fontWeight: '800'
-    lineHeight: 52px
-    letterSpacing: -0.01em
-  headline-md:
-    fontFamily: Barlow Condensed
-    fontSize: 24px
-    fontWeight: '700'
-    lineHeight: 30px
-    letterSpacing: -0.01em
-  headline-sm:
-    fontFamily: Barlow Condensed
-    fontSize: 20px
-    fontWeight: '700'
-    lineHeight: 24px
-  body-lg:
-    fontFamily: Inter
-    fontSize: 18px
-    fontWeight: '400'
-    lineHeight: 28px
-  body-md:
-    fontFamily: Inter
-    fontSize: 16px
-    fontWeight: '400'
-    lineHeight: 24px
-  label-caps:
-    fontFamily: Barlow Condensed
-    fontSize: 13px
-    fontWeight: '700'
-    lineHeight: 16px
-    letterSpacing: 0.08em
-  stat-lg:
-    fontFamily: JetBrains Mono
-    fontSize: 32px
-    fontWeight: '700'
-    lineHeight: 36px
-    letterSpacing: -0.02em
-  stat-sm:
-    fontFamily: JetBrains Mono
-    fontSize: 14px
-    fontWeight: '500'
-    lineHeight: 20px
-  display-lg-mobile:
-    fontFamily: Barlow Condensed
-    fontSize: 36px
-    fontWeight: '800'
-    lineHeight: 40px
-rounded:
-  sm: 0.125rem
-  DEFAULT: 0.25rem
-  md: 0.375rem
-  lg: 0.5rem
-  xl: 0.75rem
-  full: 9999px
-spacing:
-  base: 4px
-  xs: 4px
-  sm: 8px
-  md: 16px
-  lg: 24px
-  xl: 32px
-  gutter: 16px
-  margin-mobile: 16px
-  margin-desktop: 32px
----
-
-## Brand & Style
-
-The design system is built on a foundation of **Modern French Racing**, a style that marries the gritty, high-performance atmosphere of professional cycling with a clean, contemporary digital aesthetic. The system prioritizes speed, precision, and heritage, evoking the sensation of the peloton moving through the French countryside.
-
-The visual direction utilizes a **High-Contrast / Bold** approach. It leans heavily on massive, condensed typography and a dark, asphalt-inspired base to allow the iconic race colors to vibrate with intensity. To ground the digital experience in the physical race, the design incorporates topographic patterns inspired by Alpine climb profiles and subtle French tricolor accents (blue, white, and red ribbons) to maintain a sense of place and prestige. 
-
-The emotional response should be one of urgency and professionalism—mirroring the split-second decision-making required by a team director during a mountain stage.
-
-## Colors
-
-The palette is derived directly from the iconography of the Tour. The **Primary (Tour Yellow)** is the focal point, reserved for the most critical actions and the "Maillot Jaune" status. The **Neutral (Deep Asphalt)** serves as the road—a dark, textured canvas that reduces glare and provides high legibility for dense data.
-
-- **Primary (Yellow):** Used for active states, primary buttons, and seasonal point totals.
-- **Secondary (Points Green):** Used for success states, "In-Race" status, and value increases.
-- **Tertiary (Polka-Dot Red):** Reserved for "Out of Race" (DNF/DNS) status, errors, and removal actions.
-- **Neutral (Asphalt/White):** A scale of deep greys (`#121214` to `#2D2D32`) for surfaces, with crisp white for maximum text contrast.
-- **Tricolor Accents:** Use French Blue (`#002395`) and French Red (`#ED2939`) only as thin decorative ribbons or "heritage" badges.
-
-## Typography
-
-This system uses a dual-font strategy to balance athletic energy with data density. 
-
-**Barlow Condensed** is the voice of the race. It is used for all headings and navigational elements. Its tall, narrow profile allows for high-impact messaging even on narrow mobile screens. It should almost always be set in uppercase to mimic race-side stencils and signage.
-
-**Inter** provides a neutral, highly readable foundation for player names, descriptions, and UI instructions.
-
-**JetBrains Mono** is utilized for all numerical data. This ensures that rider prices, points, and times align perfectly in vertical columns, allowing users to scan and compare stats with mechanical precision.
-
-## Layout & Spacing
-
-The layout philosophy follows a **Fluid Grid** model with a mobile-first priority. Given the density of rider statistics, the layout is designed to be "compact but breathable," utilizing a 4px baseline rhythm.
-
-- **Mobile (Default):** 1-column stack with 16px side margins. Data tables may use horizontal scrolling or condensed views to keep the 9-rider roster visible on a single viewport height.
-- **Desktop (768px+):** Transitions to a 12-column grid. The "Roster Creator" typically uses a 2/3 (Market) and 1/3 (Your Team) split or a 2-column dashboard.
-- **Gutter Strategy:** 16px gutters are standard to maintain clear separation between dense data modules.
-- **Density:** Padding within list items is kept to a minimum (8-12px vertical) to ensure the maximum number of riders can be seen at once without excessive scrolling.
-
-## Elevation & Depth
-
-Hierarchy is established through **Tonal Layers** rather than heavy shadows, maintaining a sleek, modern feel.
-
-- **Base Layer:** The darkest grey (`#121214`) represents the "road."
-- **Surface Layer:** Cards and containers use a slightly lighter grey (`#1E1E22`) to sit above the base.
-- **Interactive Layer:** Inputs and active items use a third level of grey (`#2D2D32`).
-- **Outlines:** Instead of shadows, use 1px "Zinc" outlines (`#3F3F46`) to define boundaries. 
-- **Accent Elevation:** The primary "Yellow" components use no elevation—their color contrast provides all the necessary depth.
-- **Topographic Dividers:** Use low-opacity lines that mimic mountain elevation profiles as section separators to add a "Tactile" heritage feel without cluttering the UI.
-
-## Shapes
-
-The shape language is **Soft (0.25rem)**. This slight rounding provides a professional, "engineered" feel that avoids the playfulness of fully rounded systems or the harshness of zero-radius brutalism. 
-
-- **Standard Elements:** Buttons and cards use a 4px (`0.25rem`) radius.
-- **Status Pills:** Jersey status indicators (Yellow, Green, Red) use `rounded-xl` or full pill shapes to distinguish them from structural UI components.
-- **Media:** Rider headshots should use the standard 4px radius for a clean, card-based look.
-
-## Components
-
-### Buttons
-- **Primary:** Solid Tour Yellow background, Black Barlow Condensed Bold text. 4px radius. 
-- **Secondary:** Outlined Zinc, White text. Turns Yellow on hover.
-- **Captain Toggle:** A specialized button that, when active, turns Yellow with a star icon.
-
-### Cards
-- **Rider Card:** Features the "Asphalt" background, a 1px border, and a 3px French Tricolor ribbon at the top edge. 
-- **Stats Panel:** Uses Mono fonts for numbers. Compact vertical padding.
-
-### Lists (The Peloton Table)
-- High-density rows with alternating "Asphalt" shades for zebra-striping. 
-- Right-aligned Mono stats for quick comparison.
-- "OUT" riders are displayed at 50% opacity with a Polka-Dot Red badge.
-
-### Inputs
-- Dark backgrounds with 1px white or yellow borders on focus.
-- No shadows; focus is indicated by a crisp color change of the border.
-
-### Jerseys & Badges
-- Small, circular or jersey-shaped badges indicate the current leaders in various categories (Yellow, Green, Polka-Dot, White). These are the only elements allowed to break the standard color palette.
