@@ -341,6 +341,15 @@ async def riders_page(
 
 @app.post("/draft/{rider_id}")
 async def draft_rider(rider_id: int, request: Request, db: Session = Depends(get_db)):
+    """Drafts a rider onto the coach's roster. return_to (a hidden form
+    field carrying the current page's query string - see riders.html)
+    lets this redirect back to wherever the coach was on the Riders
+    page (a specific search/filter/sort/page) instead of always
+    bouncing to page 1, which was disorienting when drafting from deep
+    in a paginated list."""
+    form = await request.form()
+    return_to = form.get("return_to") or "/riders"
+
     user = require_coach(request, db)
     if not user:
         return RedirectResponse("/login", status_code=303)
@@ -348,11 +357,11 @@ async def draft_rider(rider_id: int, request: Request, db: Session = Depends(get
     stage = get_current_stage(db)
     if stage and stage.is_locked():
         # Transfers are frozen once the current stage has started.
-        return RedirectResponse("/riders", status_code=303)
+        return RedirectResponse(return_to, status_code=303)
 
     rider = db.query(Rider).filter(Rider.id == rider_id).first()
     if not rider or not rider.is_active:
-        return RedirectResponse("/riders", status_code=303)
+        return RedirectResponse(return_to, status_code=303)
 
     roster = get_active_roster(db, user.id)
     already_drafted = any(r.id == rider.id for r in roster)
@@ -363,7 +372,8 @@ async def draft_rider(rider_id: int, request: Request, db: Session = Depends(get
         db.add(TeamRider(user_id=user.id, rider_id=rider.id, added_date=datetime.utcnow()))
         db.commit()
 
-    return RedirectResponse("/riders", status_code=303)
+    return RedirectResponse(return_to, status_code=303)
+
 
 
 @app.post("/drop/{rider_id}")
