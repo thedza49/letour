@@ -2,7 +2,7 @@
 {% block title %}Riders - LeTour Fantasy{% endblock %}
 {% block content %}
 <h1 class="text-2xl font-bold mb-2">Browse Riders</h1>
-<p class="mb-2 text-gray-300">Budget used: <span class="text-yellow-400">€{{ "%.1f"|format(total_spent) }} / €{{ "%.0f"|format(salary_cap) }}</span> &middot; Roster: <span class="text-yellow-400">{{ roster_count }} / {{ roster_size }}</span></p>
+<p class="mb-2 text-gray-300">Budget used: <span class="text-yellow-400">€{{ "%.1f"|format(total_spent) }} / €{{ "%.0f"|format(salary_cap) }}</span> &middot; Remaining: <span class="text-yellow-400">€{{ "%.1f"|format(salary_cap - total_spent) }}</span> &middot; Roster: <span class="text-yellow-400">{{ roster_count }} / {{ roster_size }}</span></p>
 
 {% if locked %}
 <p class="mb-4 text-sm text-red-400">🔒 Stage {{ stage.stage_number }} is locked - transfers are frozen until results sync. You can still drop a rider who DNF'd/DNS'd from My Team.</p>
