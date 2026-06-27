@@ -232,27 +232,84 @@ async def home(request: Request, db: Session = Depends(get_db)):
     )
 
 
+RIDERS_PER_PAGE = 25
+
+
 @app.get("/riders")
-async def riders_page(request: Request, db: Session = Depends(get_db)):
+async def riders_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    q: str = "",
+    team: str = "",
+    sort: str = "price",
+    direction: str = "desc",
+    page: int = 1,
+):
+    """Phase E.2: search (q), team filter, sort, and pagination on top
+    of the Phase E.1 per-rider points data. All via query params and a
+    full page reload (simple form submit, no JS) per the agreed
+    approach - keeps this reliable and easy to reason about rather than
+    chasing live-filter edge cases.
+
+    Sorting by last/total points can't be pushed into SQL (those are
+    computed in Python from RiderStageResult, not a column on Rider),
+    so this loads every rider, computes their points, then sorts and
+    paginates in Python. Fine at today's ~123-rider scale; would need
+    revisiting only if the rider pool grew by an order of magnitude.
+    """
     user = require_coach(request, db)
     if not user:
         return RedirectResponse("/login", status_code=303)
 
-    riders = db.query(Rider).order_by(Rider.price.desc()).all()
     roster = get_active_roster(db, user.id)
     total_spent = sum(r.price for r in roster)
     drafted_ids = {r.id for r in roster}
     stage = get_current_stage(db)
     locked = stage.is_locked() if stage else False
 
-    # Phase E.1 per-rider points for the redesign's LAST/TOTAL columns.
+    all_riders = db.query(Rider).all()
+
+    # Distinct teams for the filter dropdown - computed from all riders
+    # (not just the filtered set) so the dropdown's options don't shrink
+    # as someone filters.
+    all_teams = sorted({r.team for r in all_riders if r.team})
+
+    # --- Filtering ---
+    filtered = all_riders
+    q_clean = q.strip()
+    if q_clean:
+        q_lower = q_clean.lower()
+        filtered = [r for r in filtered if q_lower in r.name.lower()]
+    if team:
+        filtered = [r for r in filtered if r.team == team]
+
+    # --- Per-rider points (needed before sorting, since last/total are
+    # valid sort keys) ---
     rider_points = {
         r.id: {
             "last": get_rider_last_stage_points(db, r.id),
             "total": get_rider_season_points(db, r.id),
         }
-        for r in riders
+        for r in filtered
     }
+
+    # --- Sorting ---
+    sort_keys = {
+        "name": lambda r: r.name.lower(),
+        "price": lambda r: r.price,
+        "last": lambda r: (rider_points[r.id]["last"]["points"] if rider_points[r.id]["last"] else float("-inf")),
+        "total": lambda r: rider_points[r.id]["total"],
+    }
+    sort = sort if sort in sort_keys else "price"
+    direction = direction if direction in ("asc", "desc") else "desc"
+    filtered.sort(key=sort_keys[sort], reverse=(direction == "desc"))
+
+    # --- Pagination ---
+    total_riders = len(filtered)
+    total_pages = max(1, (total_riders + RIDERS_PER_PAGE - 1) // RIDERS_PER_PAGE)
+    page = max(1, min(page, total_pages))
+    start = (page - 1) * RIDERS_PER_PAGE
+    page_riders = filtered[start:start + RIDERS_PER_PAGE]
 
     return templates.TemplateResponse(
         request,
@@ -260,7 +317,7 @@ async def riders_page(request: Request, db: Session = Depends(get_db)):
         {
             "coach": user.team_name,
             "active_nav": "riders",
-            "riders": riders,
+            "riders": page_riders,
             "drafted_ids": drafted_ids,
             "total_spent": total_spent,
             "salary_cap": SALARY_CAP,
@@ -269,6 +326,14 @@ async def riders_page(request: Request, db: Session = Depends(get_db)):
             "stage": stage,
             "locked": locked,
             "rider_points": rider_points,
+            "all_teams": all_teams,
+            "q": q_clean,
+            "selected_team": team,
+            "sort": sort,
+            "direction": direction,
+            "page": page,
+            "total_pages": total_pages,
+            "total_riders": total_riders,
         },
     )
 
