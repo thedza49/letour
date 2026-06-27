@@ -1,33 +1,114 @@
 {% extends "base.html" %}
-{% block title %}Home - LeTour Fantasy{% endblock %}
+{% block title %}Home - LE TOUR{% endblock %}
 {% block content %}
-<h1 class="text-4xl font-bold mb-2">Welcome, {{ coach }}</h1>
-<p class="text-gray-400 mb-4">Budget used: <span class="text-yellow-400">€{{ "%.1f"|format(total_spent) }} / €{{ "%.0f"|format(salary_cap) }}</span> &middot; Riders drafted: <span class="text-yellow-400">{{ roster_count }} / {{ roster_size }}</span> &middot; Season points: <span class="text-yellow-400">{{ "%.0f"|format(season_total) }}</span></p>
 
-{% if stage %}
-<p class="mb-4 text-sm {% if stage.is_locked() %}text-red-400{% else %}text-green-400{% endif %}">
-    Stage {{ stage.stage_number }} ({{ stage.date.strftime("%b %d") }}):
-    {% if stage.is_locked() %}🔒 Locked
-    {% else %}🔓 Open until {{ stage.lockout_at.strftime("%b %d, %H:%M UTC") }}
+<!-- Stage Header -->
+<section class="space-y-xs mb-lg">
+    <div class="flex items-center gap-xs text-on-surface-variant font-label-caps text-label-caps">
+        <span class="w-8 h-px bg-outline-variant"></span>
+        <span>{% if stage %}{% if stage.is_locked() %}LIVE UPDATES{% else %}UP NEXT{% endif %}{% else %}SEASON COMPLETE{% endif %}</span>
+    </div>
+    {% if stage %}
+    <h2 class="font-headline-md text-headline-md uppercase">
+        Stage {{ stage.stage_number }}{% if stage.route_name %}: {{ stage.route_name }}{% endif %}
+    </h2>
+    <p class="font-body-md text-on-surface-variant text-sm">
+        {{ stage.date.strftime("%b %d") }} &middot;
+        {% if stage.is_locked() %}<span class="text-error">Locked - transfers frozen until results sync</span>
+        {% else %}<span class="text-secondary">Open until {{ stage.lockout_at.strftime("%b %d, %H:%M UTC") }}</span>{% endif %}
+    </p>
+    {% else %}
+    <h2 class="font-headline-md text-headline-md uppercase">No upcoming stage scheduled</h2>
     {% endif %}
-</p>
-{% endif %}
+</section>
 
 {% if needs_replacement %}
-<div class="bg-red-900 border border-red-600 text-red-200 p-3 rounded mb-6 text-sm">
-    ⚠️ {{ needs_replacement|length }} rider(s) on your roster are out of the race.
-    <a href="/my-team" class="text-yellow-400 underline">Fix your roster →</a>
+<div class="bg-error-container border border-error text-on-error-container p-md rounded-xl mb-lg">
+    <p class="font-body-md text-sm">⚠️ {{ needs_replacement|length }} rider(s) on your roster are out of the race.
+    <a href="/my-team" class="underline font-bold">Fix your roster →</a></p>
 </div>
 {% endif %}
 
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <a href="/riders" class="bg-gray-800 hover:bg-gray-700 p-8 rounded-xl text-center">
-        <div class="text-4xl mb-4">🚴</div>
-        <h3 class="text-xl font-semibold">Browse Riders</h3>
-    </a>
-    <a href="/my-team" class="bg-gray-800 hover:bg-gray-700 p-8 rounded-xl text-center">
-        <div class="text-4xl mb-4">📋</div>
-        <h3 class="text-xl font-semibold">My Team</h3>
-    </a>
-</div>
+<!-- Roster Leaderboard -->
+<section class="space-y-sm mb-lg">
+    <div class="flex justify-between items-end">
+        <h3 class="font-headline-sm text-headline-sm uppercase tracking-tight">Roster Leaderboard</h3>
+        {% if last_synced_stage %}<span class="font-label-caps text-[11px] text-on-surface-variant">AFTER STAGE {{ last_synced_stage.stage_number }}</span>{% endif %}
+    </div>
+    <div class="bg-surface-container rounded border border-outline-variant overflow-hidden">
+        <table class="w-full text-left border-collapse">
+            <thead class="bg-surface-container-high border-b border-outline-variant">
+                <tr>
+                    <th class="px-md py-sm font-label-caps text-[11px] text-on-surface-variant">POS</th>
+                    <th class="px-md py-sm font-label-caps text-[11px] text-on-surface-variant">TEAM NAME</th>
+                    <th class="px-md py-sm font-label-caps text-[11px] text-on-surface-variant text-right">DAILY</th>
+                    <th class="px-md py-sm font-label-caps text-[11px] text-on-surface-variant text-right">TOTAL</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-outline-variant/30">
+                {% for entry in leaderboard %}
+                <tr class="{% if entry.user.team_name == coach %}bg-primary-container/10{% endif %}">
+                    <td class="px-md py-md font-stat-sm {% if loop.index == 1 %}text-primary-container{% else %}text-on-surface-variant{% endif %}">{{ "%02d"|format(loop.index) }}</td>
+                    <td class="px-md py-md font-body-md {% if entry.user.team_name == coach %}font-bold{% endif %}">{{ entry.user.team_name }}</td>
+                    <td class="px-md py-md font-stat-sm text-right {% if entry.daily > 0 %}text-secondary{% else %}text-on-surface-variant{% endif %}">{% if entry.daily > 0 %}+{% endif %}{{ "%.0f"|format(entry.daily) }}</td>
+                    <td class="px-md py-md font-stat-sm text-right">{{ "%.0f"|format(entry.total) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- Stage Star + Jersey Winners -->
+<section class="grid grid-cols-2 gap-md mb-lg">
+    {% if stage_star %}
+    <div class="col-span-2 md:col-span-1 bg-surface-container-high rounded-xl p-md tricolor-ribbon-border border border-outline-variant relative overflow-hidden">
+        <div class="flex justify-between items-start">
+            <div>
+                <p class="font-label-caps text-[10px] text-primary-container">STAGE STAR</p>
+                <h4 class="font-headline-sm text-headline-sm uppercase">{{ stage_star.rider.name }}</h4>
+                <p class="font-body-md text-on-surface-variant text-sm">{{ stage_star.rider.team }}</p>
+            </div>
+            <div class="bg-primary-container w-10 h-10 rounded-full flex items-center justify-center text-on-primary-container shrink-0">
+                <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+            </div>
+        </div>
+        <div class="mt-lg space-y-xs">
+            <p class="font-label-caps text-[10px] text-on-surface-variant uppercase">Points Gained</p>
+            <p class="font-stat-lg text-stat-lg text-primary-container">+{{ "%.0f"|format(stage_star.points) }}</p>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-span-2 md:col-span-1 bg-surface-container-high rounded-xl p-md border border-outline-variant flex items-center justify-center text-center">
+        <p class="font-body-md text-on-surface-variant text-sm">No stage results yet - the Stage Star will appear once the first stage syncs.</p>
+    </div>
+    {% endif %}
+
+    <div class="col-span-2 md:col-span-1 bg-surface-container-high rounded-xl p-md border border-outline-variant flex flex-col gap-md">
+        <div class="flex justify-between items-center">
+            <p class="font-label-caps text-label-caps text-primary-container">JERSEY WINNERS</p>
+            <span class="material-symbols-outlined text-on-surface-variant">military_tech</span>
+        </div>
+        <div class="space-y-sm">
+            {% set jerseys = [
+                ("yellow", "YELLOW JERSEY", "#FFE000", "checkroom"),
+                ("green", "GREEN JERSEY", "#75DC8B", "checkroom"),
+                ("polka_dot", "POLKA DOT", "#ffffff", "fiber_manual_record"),
+                ("white", "WHITE JERSEY", "#ffffff", "checkroom"),
+            ] %}
+            {% for key, label, color, icon in jerseys %}
+            <div class="flex items-center gap-sm p-sm bg-background/50 rounded border border-outline-variant/20">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center text-on-primary shrink-0" style="background-color: {{ color }};">
+                    <span class="material-symbols-outlined text-sm" style="color: {{ '#383000' if color == '#FFE000' else ('#690005' if key == 'polka_dot' else '#131315') }};">{{ icon }}</span>
+                </div>
+                <div>
+                    <p class="font-label-caps text-[10px] text-on-surface-variant">{{ label }}</p>
+                    <p class="font-bold text-sm">{% if jersey_winners[key] %}{{ jersey_winners[key].name }}{% else %}<span class="text-on-surface-variant">Not yet decided</span>{% endif %}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
 {% endblock %}

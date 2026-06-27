@@ -1,89 +1,173 @@
 {% extends "base.html" %}
-{% block title %}My Team - LeTour Fantasy{% endblock %}
+{% block title %}My Team - LE TOUR{% endblock %}
 {% block content %}
-<h1 class="text-2xl font-bold mb-2">Your Roster - {{ coach }}</h1>
-<form action="/team-name" method="post" class="flex items-center space-x-2 mb-2">
+
+<!-- Team name -->
+<div class="flex items-center gap-xs mb-lg">
+    <h2 class="font-headline-md text-headline-md text-primary uppercase">{{ coach }}</h2>
+    <button onclick="document.getElementById('rename-form').classList.toggle('hidden')" class="text-on-surface-variant hover:text-primary transition-colors">
+        <span class="material-symbols-outlined text-[18px]">edit</span>
+    </button>
+</div>
+<form id="rename-form" action="/team-name" method="post" class="hidden flex items-center gap-sm mb-lg -mt-md">
     <input type="text" name="team_name" value="{{ coach }}" maxlength="50"
-           class="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white">
-    <button type="submit" class="text-xs text-gray-300 hover:text-yellow-400 border border-gray-600 rounded px-2 py-1">Rename Team</button>
+           class="bg-surface-container-high border border-outline-variant rounded px-sm py-xs text-sm font-body-md text-on-surface focus:border-primary-container focus:ring-0">
+    <button type="submit" class="font-label-caps text-[11px] text-on-primary-container bg-primary-container px-sm py-xs rounded">SAVE</button>
 </form>
-<p class="mb-2 text-gray-300">Budget used: <span class="text-yellow-400">€{{ "%.1f"|format(total_cost) }} / €{{ "%.0f"|format(salary_cap) }}</span> &middot; Riders: <span class="text-yellow-400">{{ roster|length }} / {{ roster_size }}</span> &middot; Season points: <span class="text-yellow-400">{{ "%.0f"|format(season_total) }}</span></p>
 
 {% if stage %}
-<p class="mb-6 text-sm {% if locked %}text-red-400{% else %}text-green-400{% endif %}">
-    Stage {{ stage.stage_number }} ({{ stage.date.strftime("%b %d") }}):
-    {% if locked %}🔒 Locked - transfers and captain picks are frozen until results sync.
-    {% else %}🔓 Open - pick your captain and make transfers before lockout at {{ stage.lockout_at.strftime("%b %d, %H:%M UTC") }}.
-    {% endif %}
+<p class="mb-lg text-sm font-body-md {% if locked %}text-error{% else %}text-secondary{% endif %}">
+    Stage {{ stage.stage_number }}{% if stage.route_name %}: {{ stage.route_name }}{% endif %} -
+    {% if locked %}🔒 Locked, transfers/captain frozen until results sync.
+    {% else %}🔓 Open until {{ stage.lockout_at.strftime("%b %d, %H:%M UTC") }}.{% endif %}
 </p>
-{% else %}
-<p class="mb-6 text-sm text-gray-400">No upcoming stage scheduled.</p>
 {% endif %}
 
 {% if needs_replacement %}
-<div class="bg-red-900 border border-red-600 text-red-200 p-4 rounded mb-6">
-    <p class="font-semibold mb-2">⚠️ Action needed: {{ needs_replacement|length }} rider(s) on your roster are out of the race (DNF/DNS).</p>
-    <p class="text-sm mb-3">Drop them below and pick a replacement from Browse Riders - this is always allowed, even if the current stage is locked.</p>
-    <ul class="space-y-1">
-        {% for r in needs_replacement %}
-        <li class="flex justify-between items-center bg-red-950 p-2 rounded">
-            <span>{{ r.name }} <span class="text-red-400 text-xs">(OUT)</span></span>
-            <form action="/drop/{{ r.id }}" method="post">
-                <button type="submit" class="text-yellow-400 hover:text-yellow-300 text-sm font-semibold">Drop &amp; Replace</button>
-            </form>
-        </li>
-        {% endfor %}
-    </ul>
+<div class="bg-error-container border border-error text-on-error-container p-md rounded-xl mb-lg space-y-sm">
+    <p class="font-body-md text-sm font-bold">⚠️ {{ needs_replacement|length }} rider(s) on your roster are out of the race (DNF/DNS).</p>
+    <p class="font-body-md text-sm">Drop them below and pick a replacement from Players - always allowed, even if locked.</p>
+    {% for r in needs_replacement %}
+    <div class="flex justify-between items-center bg-background/30 p-sm rounded">
+        <span class="font-body-md text-sm">{{ r.name }} <span class="text-error text-xs">(OUT)</span></span>
+        <form action="/drop/{{ r.id }}" method="post">
+            <button type="submit" class="font-label-caps text-[11px] text-on-error-container underline">DROP &amp; REPLACE</button>
+        </form>
+    </div>
+    {% endfor %}
 </div>
 {% endif %}
 
-{% if roster %}
-<ul class="divide-y divide-gray-800 mb-6">
+<!-- Budget -->
+<section class="mb-xl">
+    <div class="flex justify-between items-end mb-sm">
+        <h2 class="font-headline-md text-headline-md text-primary uppercase">Financials</h2>
+        <div class="flex items-center gap-md">
+            {% if not locked %}
+            <form action="/clear-team" method="post" onsubmit="return confirm('Clear your entire roster? This cannot be undone.');">
+                <button type="submit" class="font-label-caps text-[11px] text-on-surface-variant hover:text-error transition-colors border border-outline-variant/30 px-sm py-1 rounded">CLEAR ROSTER</button>
+            </form>
+            {% endif %}
+            <div class="font-stat-sm text-stat-sm text-on-surface-variant">BUDGET CAP: €{{ "%.0f"|format(salary_cap) }}</div>
+        </div>
+    </div>
+    <div class="bg-surface-container p-lg rounded-xl border border-outline-variant">
+        <div class="w-full h-4 bg-surface-container-highest rounded-full overflow-hidden flex mb-md">
+            <div class="h-full bg-primary-container" style="width: {{ (100 * total_cost / salary_cap)|round(1) }}%"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-gutter">
+            <div class="space-y-xs">
+                <p class="font-label-caps text-label-caps text-on-surface-variant">SPENT</p>
+                <p class="font-stat-lg text-stat-lg text-primary">€{{ "%.1f"|format(total_cost) }}</p>
+            </div>
+            <div class="space-y-xs text-right">
+                <p class="font-label-caps text-label-caps text-on-surface-variant">REMAINING</p>
+                <p class="font-stat-lg text-stat-lg text-secondary">€{{ "%.1f"|format(salary_cap - total_cost) }}</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Roster -->
+<section class="space-y-md mb-xl">
+    <div class="flex justify-between items-center px-xs">
+        <h2 class="font-headline-md text-headline-md text-primary uppercase">Active Roster</h2>
+        <span class="font-label-caps text-on-surface-variant">{{ roster|length }} / {{ roster_size }} RIDERS</span>
+    </div>
+
+    {% set jersey_icons = {"yellow": ("checkroom", "text-primary-container", "Yellow Jersey Leader"), "green": ("checkroom", "text-secondary", "Green Jersey Leader"), "polka_dot": ("fiber_manual_record", "text-error", "Polka Dot Leader"), "white": ("checkroom", "text-white", "White Jersey Leader")} %}
+
     {% for r in roster %}
-    <li class="p-3 flex justify-between items-center {% if not r.is_active %}opacity-50{% endif %}">
-        <span>
-            {{ r.name }}
-            <span class="text-gray-400 text-sm">({{ r.rider_type }}, {{ r.team }})</span>
-            {% if r.id == current_captain_id %}<span class="text-yellow-400 text-xs ml-1">★ CAPTAIN (2x)</span>{% endif %}
-            {% if not r.is_active %}<span class="text-red-400 text-xs ml-1">OUT</span>{% endif %}
-        </span>
-        <span class="flex items-center space-x-3">
-            <span class="text-yellow-400">€{{ "%.1f"|format(r.price) }}</span>
+    {% set extra = rider_extra[r.id] %}
+    {% set is_captain = (r.id == current_captain_id) %}
+    <div class="asphalt-gradient border {% if is_captain %}border-primary-container{% else %}border-outline-variant{% endif %} rounded-xl overflow-hidden relative {% if not r.is_active %}opacity-50{% endif %}">
+        <div class="tricolor-ribbon h-1 w-full {% if not is_captain %}opacity-30{% endif %}"></div>
+        {% if is_captain %}
+        <div class="absolute top-0 right-0 p-md">
+            <div class="bg-primary-container text-on-primary-container px-sm py-xs rounded flex items-center gap-xs">
+                <span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">star</span>
+                <span class="font-label-caps text-[11px]">2X CAPTAIN</span>
+            </div>
+        </div>
+        {% endif %}
+        <div class="p-lg flex gap-lg items-center">
+            <div class="flex-1">
+                <div class="flex items-center gap-sm mb-xs">
+                    <h3 class="font-headline-sm text-headline-sm text-primary uppercase">{{ r.name }}</h3>
+                    {% if extra.jersey %}
+                    {% set icon, color, title = jersey_icons[extra.jersey] %}
+                    <span class="material-symbols-outlined {{ color }} text-[20px]" title="{{ title }}">{{ icon }}</span>
+                    {% endif %}
+                    {% if not r.is_active %}<span class="bg-error text-on-error text-[10px] px-1 font-bold rounded">OUT</span>{% endif %}
+                </div>
+                <p class="text-[11px] font-label-caps text-on-surface-variant mb-xs">{{ r.team }}</p>
+                <div class="flex gap-md mt-xs">
+                    <span class="font-label-caps text-on-surface-variant bg-surface-container px-sm py-[2px] rounded">{{ r.rider_type or "UNCLASSIFIED" }}</span>
+                    <span class="font-stat-sm text-stat-sm text-primary-container font-bold">€{{ "%.1f"|format(r.price) }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="border-t border-outline-variant/30 px-lg py-sm flex justify-between items-center {% if is_captain %}bg-primary-container/5{% endif %}">
+            <div class="flex gap-lg">
+                <div>
+                    <p class="text-[10px] font-label-caps text-on-surface-variant uppercase">Last Race</p>
+                    <p class="font-stat-sm text-stat-sm text-primary">{% if extra.last %}{{ "%.0f"|format(extra.last.points) }}{% else %}—{% endif %}</p>
+                </div>
+                <div>
+                    <p class="text-[10px] font-label-caps text-on-surface-variant uppercase">Total Points</p>
+                    <p class="font-stat-sm text-stat-sm text-primary">{{ "%.0f"|format(extra.total) }}</p>
+                </div>
+            </div>
             {% if r.is_active %}
                 {% if not locked %}
-                    {% if r.id != current_captain_id %}
+                <div class="flex gap-sm">
+                    {% if not is_captain %}
                     <form action="/captain/{{ r.id }}" method="post">
-                        <button type="submit" class="text-xs text-gray-300 hover:text-yellow-400 border border-gray-600 rounded px-2 py-1">Make Captain</button>
+                        <button type="submit" class="bg-surface-variant hover:bg-primary-container hover:text-on-primary-container transition-all px-sm py-xs rounded flex items-center gap-xs">
+                            <span class="material-symbols-outlined text-[16px]">star</span>
+                            <span class="font-label-caps text-[11px]">CAPTAIN</span>
+                        </button>
                     </form>
                     {% endif %}
                     <form action="/drop/{{ r.id }}" method="post">
-                        <button type="submit" class="text-xs text-red-400 hover:text-red-300">Drop</button>
+                        <button type="submit" class="bg-surface-variant hover:bg-error transition-colors px-sm py-xs rounded flex items-center gap-xs group">
+                            <span class="material-symbols-outlined text-[16px] group-hover:text-white">logout</span>
+                            <span class="font-label-caps text-[11px] text-on-surface group-hover:text-white">DROP</span>
+                        </button>
                     </form>
+                </div>
                 {% endif %}
+            {% else %}
+            <form action="/drop/{{ r.id }}" method="post">
+                <button type="submit" class="bg-error text-on-error px-sm py-xs rounded font-label-caps text-[11px]">DROP &amp; REPLACE</button>
+            </form>
             {% endif %}
-        </span>
-    </li>
+        </div>
+    </div>
     {% endfor %}
-</ul>
-{% else %}
-<p class="text-gray-400 mb-6">You haven't drafted any riders yet. <a href="/riders" class="text-yellow-400">Browse riders →</a></p>
-{% endif %}
+
+    {% if roster|length < roster_size %}
+    <a href="/riders" class="w-full border-2 border-dashed border-outline-variant rounded-xl p-xl flex flex-col items-center justify-center gap-sm hover:border-primary-container transition-colors group">
+        <div class="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center group-hover:bg-primary-container group-hover:text-on-primary-container transition-colors">
+            <span class="material-symbols-outlined">add</span>
+        </div>
+        <span class="font-headline-sm text-on-surface-variant uppercase">Add Rider to Roster</span>
+    </a>
+    {% endif %}
+</section>
 
 {% if scoring_history %}
-<h2 class="text-lg font-semibold mb-2 mt-8">Scoring history</h2>
-<ul class="divide-y divide-gray-800 mb-6">
-    {% for entry in scoring_history %}
-    <li class="p-3 flex justify-between items-center">
-        <span>Stage {{ entry.stage.stage_number }} ({{ entry.stage.date.strftime("%b %d") }})</span>
-        <span class="text-yellow-400">{{ "%.0f"|format(entry.points) }} pts</span>
-    </li>
-    {% endfor %}
-</ul>
+<section class="space-y-sm mb-xl">
+    <h3 class="font-headline-sm text-headline-sm uppercase tracking-tight">Scoring History</h3>
+    <div class="bg-surface-container rounded border border-outline-variant divide-y divide-outline-variant/30">
+        {% for entry in scoring_history %}
+        <div class="p-sm flex justify-between items-center">
+            <span class="font-body-md text-sm">Stage {{ entry.stage.stage_number }} ({{ entry.stage.date.strftime("%b %d") }})</span>
+            <span class="font-stat-sm text-primary-container">{{ "%.0f"|format(entry.points) }} pts</span>
+        </div>
+        {% endfor %}
+    </div>
+</section>
 {% endif %}
 
-{% if not locked %}
-<form action="/clear-team" method="post" onsubmit="return confirm('Clear your entire roster? This cannot be undone.');">
-    <button type="submit" class="text-red-400 hover:text-red-300 text-sm">Clear Team</button>
-</form>
-{% endif %}
 {% endblock %}

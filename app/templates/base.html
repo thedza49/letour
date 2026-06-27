@@ -1,31 +1,126 @@
 <!DOCTYPE html>
-<html lang="en">
+<html class="dark" lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}LeTour Fantasy{% endblock %}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+<meta charset="UTF-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>{% block title %}LE TOUR - Fantasy Racing{% endblock %}</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@100..900&family=Inter:wght@100..900&family=JetBrains+Mono:wght@500;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+<style>
+    .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    .tricolor-ribbon {
+        background: linear-gradient(90deg, #002395 33.3%, #ffffff 33.3%, #ffffff 66.6%, #ed2939 66.6%);
+    }
+    .asphalt-gradient {
+        background: linear-gradient(135deg, #1e1e22 0%, #131315 100%);
+    }
+    .topo-line, .topographic-pattern {
+        background-image: radial-gradient(circle at 2px 2px, rgba(151, 145, 119, 0.1) 1px, transparent 0);
+        background-size: 24px 24px;
+    }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #131315; }
+    ::-webkit-scrollbar-thumb { background: #353437; border-radius: 2px; }
+    body { min-height: max(884px, 100dvh); }
+</style>
+<script id="tailwind-config">
+    tailwind.config = {
+        darkMode: "class",
+        theme: {
+            extend: {
+                "colors": {
+                    "inverse-surface": "#e5e1e4", "outline-variant": "#4c4732",
+                    "on-error-container": "#ffdad6", "primary-container": "#ffe000",
+                    "primary-fixed-dim": "#e2c600", "tertiary-container": "#ffd7d8",
+                    "tertiary-fixed-dim": "#ffb3b6", "on-error": "#690005",
+                    "background": "#131315", "surface-tint": "#e2c600",
+                    "surface": "#131315", "surface-container-highest": "#353437",
+                    "surface-container-lowest": "#0e0e10", "surface-container-high": "#2a2a2c",
+                    "on-tertiary-fixed": "#40000c", "on-tertiary": "#68001a",
+                    "on-primary": "#383000", "error": "#ffb4ab",
+                    "tertiary": "#fffcff", "primary-fixed": "#ffe33b",
+                    "secondary": "#75dc8b", "on-background": "#e5e1e4",
+                    "on-primary-container": "#716300", "on-primary-fixed-variant": "#524700",
+                    "primary": "#fffcff", "secondary-fixed": "#91f9a4",
+                    "on-secondary-fixed-variant": "#005323", "surface-dim": "#131315",
+                    "on-secondary-container": "#c2ffc8", "error-container": "#93000a",
+                    "on-primary-fixed": "#211b00", "on-secondary": "#003916",
+                    "inverse-primary": "#6c5e00", "on-secondary-fixed": "#00210a",
+                    "surface-bright": "#39393b", "on-tertiary-fixed-variant": "#920028",
+                    "inverse-on-surface": "#303032", "secondary-container": "#007e39",
+                    "surface-container": "#201f21", "surface-container-low": "#1b1b1d",
+                    "on-tertiary-container": "#c7003a", "secondary-fixed-dim": "#75dc8b",
+                    "surface-variant": "#353437", "on-surface": "#e5e1e4",
+                    "outline": "#979177", "on-surface-variant": "#cec6ab",
+                    "tertiary-fixed": "#ffdada"
+                },
+                "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" },
+                "spacing": {
+                    "lg": "24px", "md": "16px", "margin-desktop": "32px", "xl": "32px",
+                    "base": "4px", "xs": "4px", "gutter": "16px", "sm": "8px", "margin-mobile": "16px"
+                },
+                "fontFamily": {
+                    "headline-md": ["Barlow Condensed"], "headline-sm": ["Barlow Condensed"],
+                    "display-lg": ["Barlow Condensed"], "stat-sm": ["JetBrains Mono"],
+                    "body-lg": ["Inter"], "body-md": ["Inter"], "stat-lg": ["JetBrains Mono"],
+                    "display-lg-mobile": ["Barlow Condensed"], "label-caps": ["Barlow Condensed"]
+                },
+                "fontSize": {
+                    "headline-md": ["24px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                    "headline-sm": ["20px", {"lineHeight": "24px", "fontWeight": "700"}],
+                    "display-lg": ["48px", {"lineHeight": "52px", "letterSpacing": "-0.01em", "fontWeight": "800"}],
+                    "stat-sm": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "stat-lg": ["32px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "display-lg-mobile": ["36px", {"lineHeight": "40px", "fontWeight": "800"}],
+                    "label-caps": ["13px", {"lineHeight": "16px", "letterSpacing": "0.08em", "fontWeight": "700"}]
+                }
+            }
+        }
+    }
+</script>
 </head>
-<body class="bg-gray-900 text-white min-h-screen">
-    {% if coach %}
-    <nav class="bg-gray-800 p-4 mb-6 flex items-center justify-between border-b border-gray-700">
-        <div class="flex space-x-6 text-yellow-400 font-bold">
-            <a href="/">Home</a>
-            <a href="/riders">Browse Riders</a>
-            <a href="/my-team">My Team</a>
-        </div>
-        <div class="flex items-center space-x-4 text-sm text-gray-300">
-            <span>{{ coach }}</span>
-            <a href="/logout" class="text-red-400 hover:text-red-300">Logout</a>
-        </div>
-    </nav>
-    {% endif %}
+<body class="bg-background text-on-background font-body-md min-h-screen pb-24">
 
-    <div class="max-w-4xl mx-auto px-4">
-        {% if error %}
-        <div class="bg-red-900 border border-red-600 text-red-200 p-3 rounded mb-4">{{ error }}</div>
-        {% endif %}
-        {% block content %}{% endblock %}
+{% if coach %}
+<header class="w-full top-0 sticky bg-surface border-b border-outline-variant z-50 flex justify-between items-center px-margin-mobile py-sm">
+    <div class="flex items-center gap-sm">
+        <span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">leaderboard</span>
+        <h1 class="font-display-lg text-display-lg-mobile uppercase tracking-tighter text-primary">LE TOUR</h1>
     </div>
+    <div class="flex items-center gap-md">
+        <span class="font-label-caps text-[12px] text-on-surface-variant hidden sm:inline">{{ coach }}</span>
+        <a href="/logout" class="material-symbols-outlined text-on-surface-variant hover:text-error transition-colors text-[20px]" title="Log out">logout</a>
+    </div>
+</header>
+{% endif %}
+
+<main class="max-w-4xl mx-auto px-margin-mobile pt-lg">
+{% if error %}
+<div class="bg-error-container border border-error text-on-error-container p-sm rounded mb-md font-body-md text-sm">{{ error }}</div>
+{% endif %}
+{% block content %}{% endblock %}
+</main>
+
+{% if coach %}
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-margin-mobile pb-sm pt-xs bg-surface-container border-t border-outline-variant z-50">
+    <a class="flex flex-col items-center justify-center px-lg py-xs rounded-full transition-all duration-150 active:scale-90 {% if active_nav == 'home' %}bg-primary-container text-on-primary-container{% else %}text-on-surface-variant hover:bg-surface-container-high{% endif %}" href="/">
+        <span class="material-symbols-outlined" {% if active_nav == 'home' %}style="font-variation-settings: 'FILL' 1;"{% endif %}>home</span>
+        <span class="font-label-caps text-[11px] mt-xs">HOME</span>
+    </a>
+    <a class="flex flex-col items-center justify-center px-lg py-xs rounded-full transition-all duration-150 active:scale-90 {% if active_nav == 'my-team' %}bg-primary-container text-on-primary-container{% else %}text-on-surface-variant hover:bg-surface-container-high{% endif %}" href="/my-team">
+        <span class="material-symbols-outlined" {% if active_nav == 'my-team' %}style="font-variation-settings: 'FILL' 1;"{% endif %}>directions_bike</span>
+        <span class="font-label-caps text-[11px] mt-xs">MY TEAM</span>
+    </a>
+    <a class="flex flex-col items-center justify-center px-lg py-xs rounded-full transition-all duration-150 active:scale-90 {% if active_nav == 'riders' %}bg-primary-container text-on-primary-container{% else %}text-on-surface-variant hover:bg-surface-container-high{% endif %}" href="/riders">
+        <span class="material-symbols-outlined" {% if active_nav == 'riders' %}style="font-variation-settings: 'FILL' 1;"{% endif %}>group</span>
+        <span class="font-label-caps text-[11px] mt-xs">PLAYERS</span>
+    </a>
+</nav>
+{% endif %}
+
 </body>
 </html>
