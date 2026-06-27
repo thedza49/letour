@@ -11,6 +11,15 @@ itsdangerous
 
 # Phase C: rider import + results sync
 procyclingstats
+# requests advertises Brotli ('br') support in its Accept-Encoding header
+# regardless of whether a decoder is actually installed. PCS responds with
+# real Brotli-compressed pages, and without this package requests silently
+# hands back the raw compressed bytes instead of decoding them - which is
+# what caused the "'NoneType' object has no attribute 'css'" startlist
+# import failure (the library was trying to parse compressed garbage, not
+# real HTML). See diagnose_startlist2.py's dumped pcs_library_fetched.html
+# for what that looked like.
+brotli
 
 # Possibly needed later
 # alembic
