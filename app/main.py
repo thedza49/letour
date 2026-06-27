@@ -41,11 +41,14 @@ def get_db():
 
 
 def require_coach(request: Request, db: Session):
-    """Returns the logged-in User row, or None if not authenticated."""
-    team_name = get_current_user(request)
-    if not team_name:
+    """Returns the logged-in User row, or None if not authenticated.
+    Looks up by id (Phase E.4) rather than team_name, so a coach
+    renaming their team mid-session doesn't break their own login -
+    see get_current_user() in app/auth.py for the full reasoning."""
+    user_id = get_current_user(request)
+    if not user_id:
         return None
-    return db.query(User).filter(User.team_name == team_name).first()
+    return db.query(User).filter(User.id == user_id).first()
 
 
 def get_current_stage(db):
@@ -298,4 +301,26 @@ async def clear_team(request: Request, db: Session = Depends(get_db)):
         TeamRider.user_id == user.id, TeamRider.dropped_date.is_(None)
     ).update({"dropped_date": now})
     db.commit()
+    return RedirectResponse("/my-team", status_code=303)
+
+
+@app.post("/team-name")
+async def update_team_name(request: Request, db: Session = Depends(get_db)):
+    """Phase E.4: lets a coach rename their own team. Safe to do at any
+    time, including mid-stage - this is just a display label change,
+    not a roster/transfer action, so it isn't gated by lockout. (This
+    only works cleanly because Phase E.4 also switched session identity
+    to user_id instead of team_name - see require_coach()/get_current_user()
+    - otherwise renaming would log the coach out of their own session.)"""
+    user = require_coach(request, db)
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
+    form = await request.form()
+    new_name = (form.get("team_name") or "").strip()
+
+    if new_name and new_name != user.team_name:
+        user.team_name = new_name
+        db.commit()
+
     return RedirectResponse("/my-team", status_code=303)
