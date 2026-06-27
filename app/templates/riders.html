@@ -11,27 +11,41 @@
 <p class="mb-md text-sm font-body-md text-error">🔒 Stage {{ stage.stage_number }} is locked - transfers frozen until results sync. You can still drop a DNF/DNS rider from My Team.</p>
 {% endif %}
 
-<!-- Search & filter bar (visual only for now - live filtering/sorting/pagination lands once the full ~180-rider field is imported; see Phase E.2) -->
-<section class="mb-md space-y-sm">
+<!-- Search & filter bar (Phase E.2 - plain form submit, full reload, no JS) -->
+<form action="/riders" method="get" class="mb-md space-y-sm">
+    <input type="hidden" name="sort" value="{{ sort }}">
+    <input type="hidden" name="direction" value="{{ direction }}">
     <div class="relative group">
         <span class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
-        <input class="w-full bg-surface-container border border-outline-variant focus:border-primary-container focus:ring-0 text-on-surface pl-10 pr-md py-sm font-label-caps text-label-caps transition-all rounded" placeholder="SEARCH COMING SOON..." type="text" disabled title="Filtering arrives once the full rider field is imported (Phase E.2)">
+        <input name="q" value="{{ q }}" class="w-full bg-surface-container border border-outline-variant focus:border-primary-container focus:ring-0 text-on-surface pl-10 pr-md py-sm font-label-caps text-label-caps transition-all rounded" placeholder="SEARCH RIDERS..." type="text">
     </div>
-    <div class="flex gap-xs overflow-x-auto pb-xs">
-        <button class="flex-none bg-surface-container border border-outline-variant text-on-surface-variant font-label-caps text-label-caps px-md py-sm rounded-lg flex items-center gap-xs opacity-50 cursor-not-allowed" disabled title="Coming with Phase E.2">
-            <span class="material-symbols-outlined text-sm">filter_list</span> TEAM: ALL
-        </button>
-        <button class="flex-none bg-surface-container border border-outline-variant text-on-surface-variant font-label-caps text-label-caps px-md py-sm rounded-lg opacity-50 cursor-not-allowed" disabled title="Coming with Phase E.2">SPECIALTY</button>
+    <div class="flex gap-xs overflow-x-auto pb-xs items-center">
+        <select name="team" onchange="this.form.submit()" class="flex-none bg-surface-container border border-outline-variant text-on-surface-variant font-label-caps text-label-caps px-md py-sm rounded-lg">
+            <option value="" {% if not selected_team %}selected{% endif %}>TEAM: ALL</option>
+            {% for t in all_teams %}
+            <option value="{{ t }}" {% if t == selected_team %}selected{% endif %}>{{ t|upper }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="flex-none bg-primary-container text-on-primary-container font-label-caps text-label-caps px-md py-sm rounded-lg">SEARCH</button>
+        <span class="flex-none bg-surface-container border border-outline-variant text-on-surface-variant font-label-caps text-label-caps px-md py-sm rounded-lg opacity-50 cursor-not-allowed" title="No rider_type data yet - PCS doesn't classify riders by specialty">SPECIALTY</span>
     </div>
-</section>
+</form>
 
-<!-- Column headers -->
+<!-- Column headers (Last/Total/Price are sortable - links carry the current q/team forward) -->
+{% macro sort_link(key, label) %}
+{% set next_dir = 'asc' if (sort == key and direction == 'desc') else 'desc' %}
+<a href="/riders?q={{ q }}&team={{ selected_team }}&sort={{ key }}&direction={{ next_dir }}" class="flex items-center justify-end gap-xs hover:text-primary transition-colors {% if sort == key %}text-primary{% endif %}">
+    {{ label }}
+    <span class="material-symbols-outlined text-[12px]">{% if sort == key %}{{ 'arrow_upward' if direction == 'asc' else 'arrow_downward' }}{% else %}unfold_more{% endif %}</span>
+</a>
+{% endmacro %}
+
 <div class="grid grid-cols-[1fr_70px_70px_50px] md:grid-cols-[2fr_1fr_70px_70px_50px] gap-sm px-sm mb-xs text-on-surface-variant font-label-caps text-label-caps opacity-60 uppercase">
-    <div>Rider / Team</div>
+    <a href="/riders?q={{ q }}&team={{ selected_team }}&sort=name&direction={{ 'asc' if (sort == 'name' and direction == 'desc') else 'desc' }}" class="hover:text-primary transition-colors {% if sort == 'name' %}text-primary{% endif %}">Rider / Team</a>
     <div class="hidden md:block">Specialty</div>
-    <div class="text-right">Last</div>
-    <div class="text-right">Total</div>
-    <div class="text-right"></div>
+    <div class="text-right">{{ sort_link('last', 'Last') }}</div>
+    <div class="text-right">{{ sort_link('total', 'Total') }}</div>
+    <div class="text-right">{{ sort_link('price', '€') }}</div>
 </div>
 
 <div class="space-y-xs mb-lg">
@@ -80,9 +94,45 @@
             </div>
         </div>
     </div>
+    {% else %}
+    <p class="text-center font-body-md text-on-surface-variant py-lg">No riders match your search.</p>
     {% endfor %}
 </div>
 
-<p class="text-center font-label-caps text-[10px] text-on-surface-variant uppercase opacity-60 mb-lg">Showing {{ riders|length }} rider{{ "s" if riders|length != 1 }}</p>
+<!-- Pagination -->
+{% if total_pages > 1 %}
+<div class="flex flex-col items-center gap-md mt-lg pb-md">
+    <div class="flex items-center gap-sm">
+        {% if page > 1 %}
+        <a href="/riders?q={{ q }}&team={{ selected_team }}&sort={{ sort }}&direction={{ direction }}&page={{ page - 1 }}" class="p-sm border border-outline-variant rounded-lg text-on-surface-variant hover:text-primary">
+            <span class="material-symbols-outlined">chevron_left</span>
+        </a>
+        {% else %}
+        <span class="p-sm border border-outline-variant rounded-lg text-on-surface-variant opacity-50"><span class="material-symbols-outlined">chevron_left</span></span>
+        {% endif %}
+
+        {% for p in range(1, total_pages + 1) %}
+            {% if p == page %}
+            <span class="w-10 h-10 flex items-center justify-center bg-primary-container text-on-primary-container rounded-lg font-label-caps">{{ p }}</span>
+            {% elif p == 1 or p == total_pages or (p >= page - 1 and p <= page + 1) %}
+            <a href="/riders?q={{ q }}&team={{ selected_team }}&sort={{ sort }}&direction={{ direction }}&page={{ p }}" class="w-10 h-10 flex items-center justify-center border border-outline-variant text-on-surface-variant rounded-lg font-label-caps hover:border-primary">{{ p }}</a>
+            {% elif p == 2 or p == total_pages - 1 %}
+            <span class="w-10 h-10 flex items-center justify-center text-on-surface-variant">...</span>
+            {% endif %}
+        {% endfor %}
+
+        {% if page < total_pages %}
+        <a href="/riders?q={{ q }}&team={{ selected_team }}&sort={{ sort }}&direction={{ direction }}&page={{ page + 1 }}" class="p-sm border border-outline-variant rounded-lg text-on-surface-variant hover:text-primary">
+            <span class="material-symbols-outlined">chevron_right</span>
+        </a>
+        {% else %}
+        <span class="p-sm border border-outline-variant rounded-lg text-on-surface-variant opacity-50"><span class="material-symbols-outlined">chevron_right</span></span>
+        {% endif %}
+    </div>
+    <p class="font-label-caps text-[10px] text-on-surface-variant uppercase opacity-60">Showing {{ ((page - 1) * 25) + 1 }}-{{ ((page - 1) * 25) + riders|length }} of {{ total_riders }} riders</p>
+</div>
+{% else %}
+<p class="text-center font-label-caps text-[10px] text-on-surface-variant uppercase opacity-60 mb-lg">Showing {{ total_riders }} rider{{ "s" if total_riders != 1 }}</p>
+{% endif %}
 
 {% endblock %}
