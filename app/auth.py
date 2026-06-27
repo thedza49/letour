@@ -19,13 +19,18 @@ def get_db():
 
 
 def get_current_user(request: Request):
-    """Returns the logged-in coach's team_name, or None."""
-    return request.session.get("team_name")
+    """Returns the logged-in coach's user_id, or None. Phase E.4: this
+    used to return team_name and every route looked the User up by
+    that - which meant renaming your team mid-session would break the
+    very next page load, since the session still held the old name.
+    user_id is the actual stable identifier (team_name can change
+    freely now), so this looks up by id instead."""
+    return request.session.get("user_id")
 
 
 @router.get("/login")
 async def login_page(request: Request):
-    if request.session.get("team_name"):
+    if request.session.get("user_id"):
         return RedirectResponse("/", status_code=303)
     return templates.TemplateResponse(request, "login.html", {"coach": None})
 
@@ -46,7 +51,6 @@ async def login(request: Request, db: Session = Depends(get_db)):
         )
 
     request.session["user_id"] = user.id
-    request.session["team_name"] = user.team_name
     return RedirectResponse("/", status_code=303)
 
 
