@@ -5,3 +5,4 @@ venv/
 app/.env
 *.db
 .DS_Store
+*.log
