@@ -204,30 +204,6 @@ Stage route names (e.g. "Nice to Col de la Couillole") are seeded from the
 official ASO route table via `seed_stage_routes.py` — all 21 stages have
 their real start/finish towns.
 
-## ⚠️ Action needed before the real Tour starts
-
-**Reset stage 1's fake test data.** An earlier live test left stage 1
-marked `results_synced = True` with fake `StageResult` rows still in the
-database. `sync_results.py` will skip any stage already marked synced, so
-if this isn't cleaned up before July 4, the real stage 1 results will
-never get pulled. Reset it with:
-```bash
-cd ~/letour && source venv/bin/activate
-python3 -c "
-from app.models import SessionLocal, Stage, DailyRoster, StageResult
-db = SessionLocal()
-stage1 = db.query(Stage).filter(Stage.stage_number == 1).first()
-db.query(StageResult).filter(StageResult.stage_id == stage1.id).delete()
-db.query(DailyRoster).filter(DailyRoster.stage_id == stage1.id).delete()
-stage1.results_synced = False
-db.commit()
-print('Stage 1 reset - ready for real results.')
-db.close()
-"
-```
-
-This is the one must-do item before July 4. Everything else below is done.
-
 ## Project Roadmap
 
 * [x] **Phase A:** Real per-coach auth, fixed budget/roster rules, Jinja
