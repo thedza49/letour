@@ -78,7 +78,7 @@
                 {% elif not r.is_active %}
                 <span class="material-symbols-outlined text-on-surface-variant text-[20px] opacity-50" title="Out of race">block</span>
                 {% elif locked %}
-                <span class="material-symbols-outlined text-on-surface-variant text-[20px] opacity-50" title="Locked">lock</span>
+                <span class="material-symbols-outlined text-on-surface-variant text-[20px] opacity-50" title="Locked until results sync">lock</span>
                 {% elif roster_count >= roster_size %}
                 <span class="material-symbols-outlined text-on-surface-variant text-[20px] opacity-50" title="Roster full">block</span>
                 {% elif total_spent + r.price > salary_cap %}

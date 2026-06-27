@@ -140,6 +140,11 @@
                         </button>
                     </form>
                 </div>
+                {% else %}
+                <div class="flex items-center gap-xs text-on-surface-variant opacity-60" title="Transfers and captain picks are locked until results sync">
+                    <span class="material-symbols-outlined text-[16px]">lock</span>
+                    <span class="font-label-caps text-[11px]">LOCKED</span>
+                </div>
                 {% endif %}
             {% else %}
             <form action="/drop/{{ r.id }}" method="post">
