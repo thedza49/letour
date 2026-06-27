@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from app.models import (
     Rider, User, Stage, TeamRider, DailyRoster,
     SessionLocal, SALARY_CAP, ROSTER_SIZE, get_active_roster,
+    get_rider_season_points, get_rider_last_stage_points,
 )
 from app.auth import router as auth_router, get_current_user
 
@@ -95,6 +96,104 @@ def get_season_total(db, user_id):
     return sum(entry["points"] for entry in history)
 
 
+def get_last_synced_stage(db):
+    """Returns the most recently synced Stage (highest stage_number with
+    results_synced=True), or None if no stage has synced yet. This is
+    deliberately the opposite end from get_current_stage() (which finds
+    the next UNsynced stage) - Home's redesigned "Live Updates" section
+    wants to show what just happened (Stage Star, jersey winners), not
+    what's coming up next."""
+    return (
+        db.query(Stage)
+        .filter(Stage.results_synced.is_(True))
+        .order_by(Stage.stage_number.desc())
+        .first()
+    )
+
+
+def get_roster_leaderboard(db):
+    """Returns coaches ranked by season point total, for Home's "Roster
+    Leaderboard" table (Phase E.5/redesign - this is the query the
+    README's Phase D notes flagged as needed: a per-User sum of
+    DailyRoster.points, not just the logged-in coach's own total).
+    Each entry is {user, daily, total} where daily is this coach's
+    points on the most recently synced stage (0 if they have no
+    DailyRoster row for it - e.g. no captain picked) and total is their
+    full season sum. Sorted by total descending."""
+    last_stage = get_last_synced_stage(db)
+
+    entries = []
+    for user in db.query(User).order_by(User.team_name).all():
+        total = get_season_total(db, user.id)
+        daily = 0.0
+        if last_stage:
+            row = (
+                db.query(DailyRoster)
+                .filter(DailyRoster.user_id == user.id, DailyRoster.stage_id == last_stage.id)
+                .first()
+            )
+            if row and row.points is not None:
+                daily = row.points
+        entries.append({"user": user, "daily": daily, "total": total})
+
+    entries.sort(key=lambda e: e["total"], reverse=True)
+    return entries
+
+
+def get_stage_star(db, stage):
+    """Returns {"rider": Rider, "points": float} for whichever rider
+    scored the most RiderStageResult points on the given stage (Phase
+    E.1 data), or None if the stage has no RiderStageResult rows (not
+    synced yet). Powers Home's "Stage Star" card."""
+    if not stage:
+        return None
+    from app.models import RiderStageResult  # local import to avoid disturbing main.py's top-level import list
+
+    row = (
+        db.query(RiderStageResult)
+        .filter(RiderStageResult.stage_id == stage.id)
+        .order_by(RiderStageResult.points.desc())
+        .first()
+    )
+    if not row:
+        return None
+    rider = db.query(Rider).filter(Rider.id == row.rider_id).first()
+    if not rider:
+        return None
+    return {"rider": rider, "points": row.points}
+
+
+def get_stage_jersey_winners(db, stage):
+    """Returns {"yellow": Rider|None, "green": ..., "polka_dot": ...,
+    "white": ...} for whoever held each classification after the given
+    stage, by reading StageResult's holds_* flags. Powers Home's "Daily
+    Jersey Winners" card. Any jersey not yet established (e.g. no KOM
+    leader on stage 1) is None rather than guessed."""
+    from app.models import StageResult  # local import, see get_stage_star() above
+
+    winners = {"yellow": None, "green": None, "polka_dot": None, "white": None}
+    if not stage:
+        return winners
+
+    results = db.query(StageResult).filter(StageResult.stage_id == stage.id).all()
+    riders_by_id = {r.id: r for r in db.query(Rider).all()}
+
+    for result in results:
+        rider = riders_by_id.get(result.rider_id)
+        if not rider:
+            continue
+        if result.holds_yellow:
+            winners["yellow"] = rider
+        if result.holds_green:
+            winners["green"] = rider
+        if result.holds_polka_dot:
+            winners["polka_dot"] = rider
+        if result.holds_white:
+            winners["white"] = rider
+
+    return winners
+
+
 @app.get("/")
 async def home(request: Request, db: Session = Depends(get_db)):
     user = require_coach(request, db)
@@ -107,11 +206,17 @@ async def home(request: Request, db: Session = Depends(get_db)):
     needs_replacement = get_inactive_roster_riders(db, user.id)
     season_total = get_season_total(db, user.id)
 
+    last_synced_stage = get_last_synced_stage(db)
+    leaderboard = get_roster_leaderboard(db)
+    stage_star = get_stage_star(db, last_synced_stage)
+    jersey_winners = get_stage_jersey_winners(db, last_synced_stage)
+
     return templates.TemplateResponse(
         request,
         "home.html",
         {
             "coach": user.team_name,
+            "active_nav": "home",
             "total_spent": total_spent,
             "salary_cap": SALARY_CAP,
             "roster_count": len(roster),
@@ -119,6 +224,10 @@ async def home(request: Request, db: Session = Depends(get_db)):
             "stage": stage,
             "needs_replacement": needs_replacement,
             "season_total": season_total,
+            "last_synced_stage": last_synced_stage,
+            "leaderboard": leaderboard,
+            "stage_star": stage_star,
+            "jersey_winners": jersey_winners,
         },
     )
 
@@ -136,11 +245,21 @@ async def riders_page(request: Request, db: Session = Depends(get_db)):
     stage = get_current_stage(db)
     locked = stage.is_locked() if stage else False
 
+    # Phase E.1 per-rider points for the redesign's LAST/TOTAL columns.
+    rider_points = {
+        r.id: {
+            "last": get_rider_last_stage_points(db, r.id),
+            "total": get_rider_season_points(db, r.id),
+        }
+        for r in riders
+    }
+
     return templates.TemplateResponse(
         request,
         "riders.html",
         {
             "coach": user.team_name,
+            "active_nav": "riders",
             "riders": riders,
             "drafted_ids": drafted_ids,
             "total_spent": total_spent,
@@ -149,8 +268,10 @@ async def riders_page(request: Request, db: Session = Depends(get_db)):
             "roster_size": ROSTER_SIZE,
             "stage": stage,
             "locked": locked,
+            "rider_points": rider_points,
         },
     )
+
 
 
 @app.post("/draft/{rider_id}")
@@ -240,11 +361,42 @@ async def my_team(request: Request, db: Session = Depends(get_db)):
         if captain_row:
             current_captain_id = captain_row.captain_rider_id
 
+    # Per-rider points (Phase E.1) and last-stage jersey (implementation
+    # note in README: jersey badge always reflects last stage's holder,
+    # not a separately-tracked "season leader") for each roster card.
+    from app.models import StageResult  # local import, mirrors get_stage_star()/get_stage_jersey_winners() above
+    last_synced_stage = get_last_synced_stage(db)
+
+    rider_extra = {}
+    for r in roster:
+        jersey = None
+        if last_synced_stage:
+            result = (
+                db.query(StageResult)
+                .filter(StageResult.stage_id == last_synced_stage.id, StageResult.rider_id == r.id)
+                .first()
+            )
+            if result:
+                if result.holds_yellow:
+                    jersey = "yellow"
+                elif result.holds_green:
+                    jersey = "green"
+                elif result.holds_polka_dot:
+                    jersey = "polka_dot"
+                elif result.holds_white:
+                    jersey = "white"
+        rider_extra[r.id] = {
+            "last": get_rider_last_stage_points(db, r.id),
+            "total": get_rider_season_points(db, r.id),
+            "jersey": jersey,
+        }
+
     return templates.TemplateResponse(
         request,
         "my_team.html",
         {
             "coach": user.team_name,
+            "active_nav": "my-team",
             "roster": roster,
             "total_cost": total_cost,
             "salary_cap": SALARY_CAP,
@@ -255,6 +407,7 @@ async def my_team(request: Request, db: Session = Depends(get_db)):
             "needs_replacement": needs_replacement,
             "season_total": season_total,
             "scoring_history": scoring_history,
+            "rider_extra": rider_extra,
         },
     )
 
