@@ -196,9 +196,38 @@ teams confirm). It matches existing riders by `pcs_url`, so re-running is
 safe — it only adds genuinely new riders and updates pricing for existing
 ones, never creates duplicates.
 
-Stage lockout times default to 11:00 UTC on race day everywhere — a
-placeholder, not the real ASO start time for each stage. Adjust via
-`commissioner_tools.py set-lockout` once official times are confirmed.
+## Roster lockout
+
+Each stage has a `lockout_at` time (UTC). Once that time passes, transfers
+and captain picks freeze for every coach until that stage's results sync
+(`sync_results.py`) reopens them for the next stage. The app announces this
+clearly — Home shows a banner, My Team shows a "LOCKED" pill in place of
+the Captain/Drop buttons, and Riders disables drafting with a lock icon —
+so coaches always know why an action isn't available, rather than a button
+just silently doing nothing.
+
+**The one exception:** dropping a rider who's gone inactive (DNF/DNS) is
+always allowed, even while locked — otherwise a coach could be stuck
+unable to fix their roster mid-stage. Replacing that dropped rider still
+waits until the lockout lifts.
+
+**Current default lockout time is a placeholder — 11:00 UTC on every
+stage's race day:**
+
+| Time zone | Lockout time |
+|---|---|
+| UTC | 11:00 |
+| PDT (Pacific, Daniel's time zone) | 4:00 AM |
+| JST (Tokyo) | 8:00 PM (same day) |
+
+This is not the real ASO start time for any specific stage — just a
+placeholder so the app has *some* working lockout before real times are
+set. Adjust per-stage via:
+```bash
+python3 commissioner_tools.py set-lockout <stage_number> "2026-07-08 13:00"
+```
+(time is UTC). Worth doing before opening the league to other coaches, so
+lockout actually lines up with each stage's real start.
 
 Stage route names (e.g. "Nice to Col de la Couillole") are seeded from the
 official ASO route table via `seed_stage_routes.py` — all 21 stages have
