@@ -51,13 +51,16 @@ class Rider(Base):
 class Stage(Base):
     """One stage of the Tour. lockout_at is when transfers/captain picks
     freeze for that stage. results_synced marks whether scoring has been
-    applied (Phase C will set this)."""
+    applied (Phase C will set this). route_name is e.g. "Nice to Col de
+    la Couillole" (Phase E.5) - NULL until import_stage_routes.py is run,
+    since seed_stages.py only ever sets stage_number/date."""
     __tablename__ = "stages"
     id = Column(Integer, primary_key=True, index=True)
     stage_number = Column(Integer, unique=True, nullable=False)
     date = Column(DateTime, nullable=False)
     lockout_at = Column(DateTime, nullable=False)
     results_synced = Column(Boolean, default=False)
+    route_name = Column(String, nullable=True)
 
     def is_locked(self, now=None):
         now = now or datetime.utcnow()
