@@ -2,6 +2,11 @@
 {% block title %}My Team - LeTour Fantasy{% endblock %}
 {% block content %}
 <h1 class="text-2xl font-bold mb-2">Your Roster - {{ coach }}</h1>
+<form action="/team-name" method="post" class="flex items-center space-x-2 mb-2">
+    <input type="text" name="team_name" value="{{ coach }}" maxlength="50"
+           class="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white">
+    <button type="submit" class="text-xs text-gray-300 hover:text-yellow-400 border border-gray-600 rounded px-2 py-1">Rename Team</button>
+</form>
 <p class="mb-2 text-gray-300">Budget used: <span class="text-yellow-400">€{{ "%.1f"|format(total_cost) }} / €{{ "%.0f"|format(salary_cap) }}</span> &middot; Riders: <span class="text-yellow-400">{{ roster|length }} / {{ roster_size }}</span> &middot; Season points: <span class="text-yellow-400">{{ "%.0f"|format(season_total) }}</span></p>
 
 {% if stage %}
