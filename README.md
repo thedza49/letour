@@ -198,31 +198,36 @@ ones, never creates duplicates.
 
 ## Roster lockout
 
-Each stage has a `lockout_at` time (UTC). Once that time passes, transfers
-and captain picks freeze for every coach until that stage's results sync
-(`sync_results.py`) reopens them for the next stage. The app announces this
-clearly — Home shows a banner, My Team shows a "LOCKED" pill in place of
-the Captain/Drop buttons, and Riders disables drafting with a lock icon —
-so coaches always know why an action isn't available, rather than a button
-just silently doing nothing.
+Lockout has a clear start and end:
+- **Starts** at each stage's `lockout_at` time — transfers and captain
+  picks freeze for every coach.
+- **Ends** when the daily sync (`sync_results.py`, runs once a day via
+  cron at 16:00 UTC) successfully pulls that stage's results and marks it
+  synced — that's also when updated scores appear. Lockout then lifts for
+  the next stage.
+
+The app announces this clearly — Home shows a banner, My Team shows a
+"LOCKED" pill in place of the Captain/Drop buttons, and Riders disables
+drafting with a lock icon — so coaches always know why an action isn't
+available, rather than a button just silently doing nothing.
 
 **The one exception:** dropping a rider who's gone inactive (DNF/DNS) is
 always allowed, even while locked — otherwise a coach could be stuck
 unable to fix their roster mid-stage. Replacing that dropped rider still
 waits until the lockout lifts.
 
-**Current default lockout time is a placeholder — 11:00 UTC on every
-stage's race day:**
+**Current placeholder times (every stage uses the same default until
+adjusted per-stage):**
 
-| Time zone | Lockout time |
-|---|---|
-| UTC | 11:00 |
-| PDT (Pacific, Daniel's time zone) | 4:00 AM |
-| JST (Tokyo) | 8:00 PM (same day) |
+| | UTC | PDT (Pacific) | JST (Tokyo) |
+|---|---|---|---|
+| Lockout starts | 11:00 | 4:00 AM | 8:00 PM |
+| Lockout ends / scores update | 16:00 | 9:00 AM | 1:00 AM (+1 day) |
 
-This is not the real ASO start time for any specific stage — just a
-placeholder so the app has *some* working lockout before real times are
-set. Adjust per-stage via:
+The start time (11:00 UTC) is not the real ASO start time for any
+specific stage — just a placeholder so the app has *some* working lockout
+before real times are set. The end time (16:00 UTC) is the actual cron
+schedule and won't need adjusting. Adjust the start per-stage via:
 ```bash
 python3 commissioner_tools.py set-lockout <stage_number> "2026-07-08 13:00"
 ```
