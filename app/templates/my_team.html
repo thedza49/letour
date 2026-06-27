@@ -51,17 +51,21 @@
             <div class="font-stat-sm text-stat-sm text-on-surface-variant">BUDGET CAP: €{{ "%.0f"|format(salary_cap) }}</div>
         </div>
     </div>
-    <div class="bg-surface-container p-lg rounded-xl border border-outline-variant">
-        <div class="w-full h-4 bg-surface-container-highest rounded-full overflow-hidden flex mb-md">
+    <div class="bg-surface-container p-md rounded-xl border border-outline-variant">
+        <div class="w-full h-3 bg-surface-container-highest rounded-full overflow-hidden flex mb-md">
             <div class="h-full bg-primary-container" style="width: {{ (100 * total_cost / salary_cap)|round(1) }}%"></div>
         </div>
-        <div class="grid grid-cols-2 gap-gutter">
+        <div class="grid grid-cols-3 gap-gutter">
             <div class="space-y-xs">
-                <p class="font-label-caps text-label-caps text-on-surface-variant">SPENT</p>
+                <p class="font-label-caps text-[11px] text-on-surface-variant">SPENT</p>
                 <p class="font-stat-lg text-stat-lg text-primary">€{{ "%.1f"|format(total_cost) }}</p>
             </div>
+            <div class="space-y-xs text-center">
+                <p class="font-label-caps text-[11px] text-on-surface-variant">ROSTER</p>
+                <p class="font-stat-lg text-stat-lg {% if roster|length >= roster_size %}text-secondary{% else %}text-primary{% endif %}">{{ roster|length }}/{{ roster_size }}</p>
+            </div>
             <div class="space-y-xs text-right">
-                <p class="font-label-caps text-label-caps text-on-surface-variant">REMAINING</p>
+                <p class="font-label-caps text-[11px] text-on-surface-variant">REMAINING</p>
                 <p class="font-stat-lg text-stat-lg text-secondary">€{{ "%.1f"|format(salary_cap - total_cost) }}</p>
             </div>
         </div>
