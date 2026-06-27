@@ -16,7 +16,7 @@ Called from sync_results.py after it finishes writing StageResult rows
 for a stage. Can also be re-run by hand from a Python shell if a
 correction is needed - see the bottom of this file for an example.
 """
-from app.models import SessionLocal, StageResult, TeamRider, DailyRoster
+from app.models import SessionLocal, StageResult, TeamRider, DailyRoster, RiderStageResult
 
 # --- League scoring rules -------------------------------------------------
 # Tune these freely; nothing elsewhere in the codebase hardcodes point
@@ -88,8 +88,20 @@ def rider_stage_points(result: StageResult):
 
 def score_stage(db, stage_id):
     """Computes and stores DailyRoster.points for every coach for the
-    given stage_id. Must be called AFTER StageResult rows for this stage
-    have been written (sync_results.py does this).
+    given stage_id, AND stores every individual rider's own stage
+    points on RiderStageResult (Phase E.1 - see app/models.py for why).
+    Must be called AFTER StageResult rows for this stage have been
+    written (sync_results.py does this).
+
+    Rider-level scoring (RiderStageResult):
+      - One row per rider who has a StageResult for this stage, with
+        their raw rider_stage_points() (finish + jersey bonus, no
+        captain multiplier - that only ever applies per-coach).
+      - Deleted and rewritten every call, so re-running this for a
+        stage (e.g. recompute_stage() after a data fix) keeps both
+        tables in sync rather than leaving stale rows behind.
+
+    Coach-level scoring (DailyRoster.points), unchanged from Phase C:
 
     For each coach:
       - Sum rider_stage_points() across every rider on their active
@@ -119,6 +131,21 @@ def score_stage(db, stage_id):
     # we'll need to look up many riders' results per coach.
     results = db.query(StageResult).filter(StageResult.stage_id == stage_id).all()
     results_by_rider = {r.rider_id: r for r in results}
+
+    # Persist each rider's own point total for this stage (Phase E.1) -
+    # independent of whether any coach rostered or captained them. This
+    # is what powers the redesigned Home/My Team/Riders pages' per-rider
+    # "last race" / "total points" displays. Cleared and rewritten every
+    # time in case this is a recompute_stage() re-run correcting earlier
+    # data, same delete-then-insert pattern sync_results.py uses for
+    # StageResult itself.
+    db.query(RiderStageResult).filter(RiderStageResult.stage_id == stage_id).delete()
+    for rider_id, result in results_by_rider.items():
+        db.add(RiderStageResult(
+            stage_id=stage_id,
+            rider_id=rider_id,
+            points=rider_stage_points(result),
+        ))
 
     totals = {}
 
