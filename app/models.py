@@ -97,6 +97,43 @@ class DailyRoster(Base):
     captain_rider = relationship("Rider")
 
 
+class RiderStageResult(Base):
+    """One row per (rider, stage): that rider's OWN point total for the
+    stage (finish points + jersey bonus, from
+    scoring.rider_stage_points()) - regardless of whether any coach had
+    them rostered or captained that stage. This exists separately from
+    StageResult (the raw finish/jersey data) and from DailyRoster.points
+    (a coach's team total, captain multiplier included) because none of
+    those answer "how many points did this one rider score in this one
+    stage" on their own, which is what the frontend redesign needs in
+    three places (Phase E.1 - see README roadmap):
+      - Home's "Stage Star" card (a featured rider's points)
+      - My Team's roster cards (each rostered rider's own Last Race /
+        Total Points, not the team's captain-driven total)
+      - Riders page sortable LAST / TOTAL columns across the full pool
+
+    Written by app/scoring.py's score_stage(), once per StageResult row,
+    in the same pass that computes coach totals - so this table and
+    DailyRoster.points are always in sync with each other and with
+    StageResult.
+
+    A rider with no row for a given stage means they had no StageResult
+    for that stage (not in that day's race, e.g. not yet imported into
+    the startlist) - distinct from scoring 0 points, same convention
+    DailyRoster/get_scoring_history already uses elsewhere in this app.
+    """
+    __tablename__ = "rider_stage_results"
+    id = Column(Integer, primary_key=True, index=True)
+    stage_id = Column(Integer, ForeignKey("stages.id"), nullable=False)
+    rider_id = Column(Integer, ForeignKey("riders.id"), nullable=False)
+    points = Column(Float, nullable=False)
+
+    __table_args__ = (UniqueConstraint("stage_id", "rider_id", name="uq_stage_rider_points"),)
+
+    stage = relationship("Stage")
+    rider = relationship("Rider")
+
+
 class StageResult(Base):
     """One row per rider, per stage: their finish position and whether
     they held one of the four classification jerseys after that stage
@@ -145,6 +182,34 @@ def get_active_roster(db, user_id):
         .all()
     )
     return [row.rider for row in rows]
+
+
+def get_rider_season_points(db, rider_id):
+    """Sum of a single rider's own RiderStageResult.points across every
+    stage they've scored in so far. Used by the Riders page's TOTAL
+    column (Phase E.2) and My Team's roster cards (Phase E.1/E.2) -
+    this is the rider's own total, NOT scaled by any coach's captain
+    multiplier."""
+    rows = db.query(RiderStageResult).filter(RiderStageResult.rider_id == rider_id).all()
+    return sum(row.points for row in rows)
+
+
+def get_rider_last_stage_points(db, rider_id):
+    """Returns {"stage": Stage, "points": float} for the most recent
+    stage this rider has a RiderStageResult row for, or None if they
+    haven't scored yet (no synced stage has included them). Used by
+    the Riders page's LAST column and My Team's "Last Race" card text
+    (Phase E.1/E.2)."""
+    row = (
+        db.query(RiderStageResult)
+        .join(Stage, RiderStageResult.stage_id == Stage.id)
+        .filter(RiderStageResult.rider_id == rider_id)
+        .order_by(Stage.stage_number.desc())
+        .first()
+    )
+    if not row:
+        return None
+    return {"stage": row.stage, "points": row.points}
 
 
 # Seed a starter rider pool only if the table is empty, so re-deploys don't wipe drafts.
