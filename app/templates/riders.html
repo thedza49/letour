@@ -20,14 +20,13 @@
         <input name="q" value="{{ q }}" class="w-full bg-surface-container border border-outline-variant focus:border-primary-container focus:ring-0 text-on-surface pl-10 pr-md py-sm font-label-caps text-label-caps transition-all rounded" placeholder="SEARCH RIDERS..." type="text">
     </div>
     <div class="flex gap-xs overflow-x-auto pb-xs items-center">
-        <select name="team" onchange="this.form.submit()" class="flex-none bg-surface-container border border-outline-variant text-on-surface-variant font-label-caps text-label-caps px-md py-sm rounded-lg">
+        <select name="team" onchange="this.form.submit()" class="flex-none max-w-[160px] truncate bg-surface-container border border-outline-variant text-on-surface-variant font-label-caps text-label-caps px-md py-sm rounded-lg">
             <option value="" {% if not selected_team %}selected{% endif %}>TEAM: ALL</option>
             {% for t in all_teams %}
             <option value="{{ t }}" {% if t == selected_team %}selected{% endif %}>{{ t|upper }}</option>
             {% endfor %}
         </select>
         <button type="submit" class="flex-none bg-primary-container text-on-primary-container font-label-caps text-label-caps px-md py-sm rounded-lg">SEARCH</button>
-        <span class="flex-none bg-surface-container border border-outline-variant text-on-surface-variant font-label-caps text-label-caps px-md py-sm rounded-lg opacity-50 cursor-not-allowed" title="No rider_type data yet - PCS doesn't classify riders by specialty">SPECIALTY</span>
     </div>
 </form>
 
