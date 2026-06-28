@@ -31,7 +31,7 @@
     </div>
 </form>
 
-<!-- Column headers (Last/Total/Price are sortable - links carry the current q/team forward) -->
+<!-- Column headers (Total/Price are sortable - links carry the current q/team forward) -->
 {% macro sort_link(key, label) %}
 {% set next_dir = 'asc' if (sort == key and direction == 'desc') else 'desc' %}
 <a href="/riders?q={{ q }}&team={{ selected_team }}&sort={{ key }}&direction={{ next_dir }}" class="flex items-center justify-end gap-xs hover:text-primary transition-colors {% if sort == key %}text-primary{% endif %}">
@@ -40,10 +40,8 @@
 </a>
 {% endmacro %}
 
-<div class="grid grid-cols-[1fr_70px_70px_50px] md:grid-cols-[2fr_1fr_70px_70px_50px] gap-sm px-sm mb-xs text-on-surface-variant font-label-caps text-label-caps opacity-60 uppercase">
+<div class="grid grid-cols-[1fr_70px_50px] gap-sm px-sm mb-xs text-on-surface-variant font-label-caps text-label-caps opacity-60 uppercase">
     <a href="/riders?q={{ q }}&team={{ selected_team }}&sort=name&direction={{ 'asc' if (sort == 'name' and direction == 'desc') else 'desc' }}" class="hover:text-primary transition-colors {% if sort == 'name' %}text-primary{% endif %}">Rider / Team</a>
-    <div class="hidden md:block">Specialty</div>
-    <div class="text-right">{{ sort_link('last', 'Last') }}</div>
     <div class="text-right">{{ sort_link('total', 'Total') }}</div>
     <div class="text-right">{{ sort_link('price', '€') }}</div>
 </div>
@@ -53,21 +51,18 @@
     {% set pts = rider_points[r.id] %}
     <div class="relative {{ 'bg-surface-container' if loop.index0 % 2 == 0 else 'bg-surface-container-low' }} border border-outline-variant group {% if r.is_active %}hover:border-primary-container{% endif %} transition-colors {% if not r.is_active %}opacity-60{% endif %}">
         {% if r.id in drafted_ids %}<div class="tricolor-ribbon absolute top-0 left-0 w-full h-[2px] opacity-60"></div>{% endif %}
-        <div class="grid grid-cols-[1fr_70px_70px_50px] md:grid-cols-[2fr_1fr_70px_70px_50px] gap-sm items-center p-sm">
+        <div class="grid grid-cols-[1fr_70px_50px] gap-sm items-center p-sm">
             <div class="flex flex-col gap-xs overflow-hidden">
                 <div class="flex items-center gap-1">
                     <h3 class="font-headline-sm text-headline-sm uppercase">{{ r.name }}</h3>
                     {% if not r.is_active %}<span class="bg-error text-on-error text-[8px] px-1 font-bold rounded">OUT</span>{% endif %}
                 </div>
                 <div class="flex items-center gap-sm">
-                    <span class="font-label-caps text-[10px] px-xs py-[2px] bg-surface-container-highest rounded text-on-surface-variant">{{ r.rider_type or r.team }}</span>
+                    {% if r.rider_type %}
+                    <span class="font-label-caps text-[10px] px-xs py-[2px] bg-primary-container text-on-primary-container rounded">{{ r.rider_type }}</span>
+                    {% endif %}
+                    <span class="font-body-md text-on-surface-variant text-sm">{{ r.team }}</span>
                 </div>
-            </div>
-            <div class="hidden md:block font-body-md text-on-surface-variant text-sm">{{ r.team }}</div>
-            <div class="text-right">
-                <span class="font-stat-sm text-[11px] {% if pts.last and pts.last.points > 0 %}text-secondary{% else %}text-on-surface-variant{% endif %}">
-                    {% if pts.last %}{% if pts.last.points > 0 %}+{% endif %}{{ "%.0f"|format(pts.last.points) }}{% else %}—{% endif %}
-                </span>
             </div>
             <div class="text-right">
                 <span class="font-stat-sm text-[11px]">{{ "%.0f"|format(pts.total) }}</span>
